@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>내 그림이 이야기 속으로! - 나만의 그림책 만들기</title>
+  <meta name="description" content="어린이가 직접 그린 그림이 살아 움직이는 특별한 나만의 그림책 만들기 웹사이트. 유치원 부모참여수업에서 부모와 아이가 함께 동화를 창작해요.">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- 상단 헤더 -->
+    <header class="app-header">
+      <div class="header-container">
+        <div class="logo-area" id="btn-home-logo" title="처음으로 가기">
+          <span class="logo-icon">📖✨</span>
+          <div class="logo-text">
+            <h1>나만의 그림책 만들기</h1>
+            <p>우리가족 그림책 놀이터</p>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button type="button" class="icon-btn" id="btn-toggle-sound" title="효과음 켜기/끄기" aria-label="효과음 토글">
+            <span id="sound-icon">🔊</span>
+            <span id="sound-label" class="header-btn-text">소리 켬</span>
+          </button>
+          <button type="button" class="icon-btn" id="btn-open-guide" title="활동 팁 안내" aria-label="활동 도움말">
+            <span>💡</span>
+            <span class="header-btn-text">활동 도움말</span>
+          </button>
+          <button type="button" class="icon-btn" id="btn-header-voice-clone" title="내 목소리 AI 복제 (Qwen-TTS)" aria-label="내 목소리 AI">
+            <span>🎙️</span>
+            <span class="header-btn-text">내 목소리 AI</span>
+          </button>
+          <button type="button" class="icon-btn" id="btn-open-settings" title="Gemini API 설정" aria-label="API 설정">
+            <span>⚙️</span>
+            <span class="header-btn-text">API 설정</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- 스텝 진행 바 (6단계) -->
+    <div class="step-progress-wrapper">
+      <div class="step-progress">
+        <div class="step-progress-fill" id="step-progress-fill"></div>
+        <button type="button" class="step-item active" data-step="1" id="step-btn-1">
+          <div class="step-circle">1</div>
+          <span class="step-label">시작</span>
+        </button>
+        <button type="button" class="step-item" data-step="2" id="step-btn-2">
+          <div class="step-circle">2</div>
+          <span class="step-label">해솔반 친구</span>
+        </button>
+        <button type="button" class="step-item" data-step="3" id="step-btn-3">
+          <div class="step-circle">3</div>
+          <span class="step-label">주인공 확인</span>
+        </button>
+        <button type="button" class="step-item" data-step="4" id="step-btn-4">
+          <div class="step-circle">4</div>
+          <span class="step-label">우리 이야기</span>
+        </button>
+        <button type="button" class="step-item" data-step="5" id="step-btn-5">
+          <div class="step-circle">5</div>
+          <span class="step-label">마법 그림책</span>
+        </button>
+        <button type="button" class="step-item" data-step="6" id="step-btn-6">
+          <div class="step-circle">6</div>
+          <span class="step-label">그림책 읽기</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 메인 컨텐츠 영역 -->
+    <main class="main-content">
+
+      <!-- ==============================================
+           1. 첫 화면 (Landing)
+           ============================================== -->
+      <section class="step-panel active" id="step-1">
+        <div class="storybook-card welcome-hero">
+          <div class="hero-illu-container">
+            <div class="hero-circle">
+              <span class="hero-main-emoji">🎨</span>
+            </div>
+            <span class="hero-floating-deco deco-star1">⭐</span>
+            <span class="hero-floating-deco deco-star2">✨</span>
+            <span class="hero-floating-deco deco-rainbow">🌈</span>
+            <span class="hero-floating-deco deco-heart">💖</span>
+          </div>
+
+          <h2>내 그림이 이야기 속으로!</h2>
+          <p class="sub-heading">내가 그린 친구와 함께 특별한 이야기를 만들어 보아요.</p>
+
+          <div class="welcome-tip-card">
+            <span class="tip-icon">🏡</span>
+            <div class="tip-text">
+              <strong>해솔반 부모참여수업 그림책 만들기!</strong><br>
+              아래 [그림책 만들기 시작!] 버튼을 눌러 해솔반 친구들의 프로필을 선택하고, 아이와 함께 세상에 단 하나뿐인 동화책을 만들어 보세요!
+            </div>
+          </div>
+
+          <button type="button" class="btn-large-primary" id="btn-start-making">
+            <span>그림책 만들기 시작!</span>
+            <span>🪄</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ==============================================
+           2. 해솔반 친구 선택 (Children Profile Select)
+           ============================================== -->
+      <section class="step-panel" id="step-2">
+        <div class="storybook-card">
+          <div class="card-deco-badge">해솔반 원아 목록</div>
+          <div class="children-select-header">
+            <h2>“오늘의 동화 주인공은 누구일까요? 🌟”</h2>
+            <p>해솔반 친구 중 그림책을 만들 주인공을 콕 선택해 주세요!</p>
+          </div>
+
+          <!-- 상단 툴바: 검색 및 직접 올리기 & 보관함 -->
+          <div class="children-toolbar">
+            <div class="children-search-box">
+              <span>🔍</span>
+              <input type="text" class="children-search-input" id="children-search-input" placeholder="우리 아이 이름 검색 (예: 나연, 시아, 예준...)" />
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn-secondary" id="btn-open-library-modal" style="font-size: 13.5px; padding: 10px 16px; background: #FFF9E6; border-color: #FFB830; color: #744210; font-weight: 700;">
+                📚 완성된 그림책 보관함 <span id="library-total-badge" style="background: var(--primary-coral); color: white; padding: 1px 7px; border-radius: 10px; font-size: 11px; margin-left: 4px;">0</span>
+              </button>
+              <button type="button" class="btn-secondary" id="btn-skip-to-custom-upload" style="font-size: 13.5px; padding: 10px 16px;">
+                📷 다른 사진 직접 올리기 ➡️
+              </button>
+            </div>
+          </div>
+
+          <!-- 20명 아이들 카드 그리드 -->
+          <div class="children-grid" id="children-grid-container">
+            <!-- JS에서 동적 주입 -->
+          </div>
+
+          <!-- 내비게이션 바 -->
+          <div class="step-nav-bar">
+            <button type="button" class="btn-secondary" id="btn-back-to-step1">
+              ⬅️ 첫 화면으로
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ==============================================
+           3. 등장인물 확인 & 사진 스타일 (Character Studio)
+           ============================================== -->
+      <section class="step-panel" id="step-3">
+        <div class="storybook-card">
+          <div class="card-deco-badge">STEP 3</div>
+          <div class="step-header">
+            <h2 class="step-question" id="char-step-question">“이야기에는 누가 나오나요?”</h2>
+            <p class="step-subtext">선택된 친구의 이름과 사진을 확인하고, 원하시는 경우 다른 사진이나 손그림으로 변경할 수도 있어요.</p>
+          </div>
+
+          <div class="character-maker-grid">
+            <!-- 왼쪽: 사진 업로드 및 스마트 투명화 프리뷰 -->
+            <div class="upload-container">
+              <!-- 업로드 드롭존 (여러 장 선택 지원 & AI 자동 누끼) -->
+              <div class="dropzone-box" id="character-dropzone">
+                <input type="file" id="character-file-input" accept="image/*" multiple style="display: none;" />
+                <input type="file" id="character-camera-input" accept="image/*" capture="environment" style="display: none;" />
+                
+                <div class="dropzone-content">
+                  <span class="dropzone-icon">📷</span>
+                  <p class="dropzone-title">어린이 사진 / 그림 올리기 (여러 장 선택 가능)</p>
+                  <p class="dropzone-desc">여러 장을 올리시면 AI가 배경을 깔끔하게 지워 각 장면(1~5장면)에 나누어 넣어드려요!</p>
+                  
+                  <div class="upload-btn-group">
+                    <button type="button" class="btn-upload-action" id="btn-trigger-upload">
+                      📁 사진 찾기 (여러 장 선택)
+                    </button>
+                    <button type="button" class="btn-upload-action" id="btn-trigger-camera">
+                      📸 바로 촬영
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 여러 장 사진 슬롯 관리 바 -->
+              <div class="multi-photo-container" id="multi-photo-container" style="background: #FFF9ED; border: 1.5px dashed #FFD56B; border-radius: var(--border-radius-sm); padding: 12px; margin-bottom: 8px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <span style="font-weight: 700; color: #744210; font-size: 13px;">📸 등장인물 사진 & 이름 등록 (이야기 자동 매칭)</span>
+                  <span id="multi-photo-count-badge" style="font-size: 11px; font-weight: 700; background: var(--primary-coral); color: white; padding: 2px 8px; border-radius: 10px;">1장 사용 중</span>
+                </div>
+                <div class="photo-slots-grid" id="photo-slots-grid" style="display: flex; gap: 8px; overflow-x: auto; padding: 4px 0;">
+                  <!-- JS에서 동적 주입 -->
+                </div>
+                <p style="font-size: 11.5px; color: #8C6D3B; margin-top: 6px; line-height: 1.4;">
+                  ✨ 각 사진 위 <strong>👑 주인공 체크박스</strong>를 콕 눌러 한눈에 지정하고, 아래 이름을 입력해 보세요!
+                </p>
+              </div>
+
+              <!-- 투명화 실시간 미리보기 (배경 지워진 깔끔한 인물 바로 표시) -->
+              <div class="preview-card" id="preview-card-box">
+                <div class="preview-canvas-container" style="height: 260px;">
+                  <canvas id="character-preview-canvas" width="300" height="260"></canvas>
+                </div>
+                <p style="font-size: 13px; font-weight: 700; color: #2B6CB0; text-align: center; margin-top: 10px;">
+                  ✨ AI가 배경을 지운 우리 아이의 모습입니다.
+                </p>
+              </div>
+            </div>
+
+            <!-- 오른쪽: 캐릭터 정보 입력 폼 -->
+            <div class="character-info-form">
+              <div class="input-field-group">
+                <label for="input-char-desc" class="input-label">
+                  <span>💬</span>
+                  <span>어떤 친구인지 간단한 설명</span>
+                </label>
+                <textarea id="input-char-desc" class="text-input textarea-input" placeholder="예: 하늘을 날고 싶은 호기심 많은 분홍색 토끼">하늘을 날고 싶은 분홍색 토끼</textarea>
+                
+                <!-- 추천 성격 칩 -->
+                <div class="quick-tag-chips">
+                  <span class="tag-chip" data-tag="하늘을 날고 싶어하는">#하늘 날기</span>
+                  <span class="tag-chip" data-tag="노래를 아주 잘 부르는">#노래쟁이</span>
+                  <span class="tag-chip" data-tag="달리기가 쌩쌩 빠른">#달리기 대장</span>
+                  <span class="tag-chip" data-tag="친구를 포근하게 안아주는">#다정해</span>
+                  <span class="tag-chip" data-tag="새로운 모험을 좋아하는">#호기심 왕</span>
+                  <span class="tag-chip" data-tag="달콤한 사탕을 좋아하는">#달콤이</span>
+                </div>
+              </div>
+
+              <!-- 캐릭터 추가 리스트 (여러 장 지원) -->
+              <div class="character-slots-box" style="margin-top: 10px;">
+                <p style="font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px;">
+                  ✨ 등록된 주인공 친구
+                </p>
+                <div id="character-badge-display" style="display: flex; align-items: center; gap: 10px; background: var(--bg-soft-yellow); padding: 8px 12px; border-radius: var(--border-radius-sm);">
+                  <span id="badge-char-name" style="font-weight: 700; color: var(--primary-coral);">몽실이</span>
+                  <span style="font-size: 12px; color: var(--text-muted);">(그림책의 주인공으로 멋지게 등장해요!)</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 내비게이션 바 -->
+          <div class="step-nav-bar">
+            <button type="button" class="btn-secondary" id="btn-back-to-step2">
+              ⬅️ 친구 다시 선택하기
+            </button>
+            <button type="button" class="btn-primary" id="btn-to-step-4">
+              우리 이야기 만들기 ➡️
+            </button>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==============================================
+           4. 우리 이야기 만들기
+           ============================================== -->
+      <section class="step-panel" id="step-4">
+        <div class="storybook-card">
+          <div class="card-deco-badge">STEP 4</div>
+          <div class="step-header">
+            <h2 class="step-question">“어떤 재미있는 일이 일어났을까요?”</h2>
+            <p class="step-subtext">부모님과 어린이가 즐겁게 대화하며 질문에 답을 하거나, 자유롭게 써보세요.</p>
+          </div>
+
+          <!-- 모드 전환 탭 -->
+          <div class="story-mode-switch">
+            <button type="button" class="mode-tab-btn active" id="tab-mode-qa">
+              💡 대화하며 질문에 답하기 (추천)
+            </button>
+            <button type="button" class="mode-tab-btn" id="tab-mode-free">
+              ✏️ 자유롭게 이야기 쓰기
+            </button>
+          </div>
+
+          <!-- 1) 질문 모드 컨테이너 -->
+          <div id="qa-mode-container" class="qa-card-list">
+            <!-- 질문 1 -->
+            <div class="qa-card">
+              <div class="qa-card-header">
+                <div class="qa-number-badge">1</div>
+                <div class="qa-question-text">주인공은 어디에 갔나요?</div>
+              </div>
+              <input type="text" id="qa-input-where" class="text-input" placeholder="어린이의 대답을 적어주세요 (예: 무지개 언덕)" value="무지개 피어난 초록 숲속" />
+              <div class="recommend-chips-box">
+                <span class="recommend-label">어린이 추천 콕!:</span>
+                <button type="button" class="choice-chip" data-target="qa-input-where" data-val="비밀의 초록 숲속">🌳 비밀의 초록 숲속</button>
+                <button type="button" class="choice-chip" data-target="qa-input-where" data-val="달콤한 솜사탕 무지개 나라">🌈 무지개 나라</button>
+                <button type="button" class="choice-chip" data-target="qa-input-where" data-val="푸른 바닷속 산호마을">🌊 푸른 바닷속</button>
+                <button type="button" class="choice-chip" data-target="qa-input-where" data-val="반짝반짝 꿈나라 별빛 우주">🚀 별빛 우주</button>
+                <button type="button" class="choice-chip" data-target="qa-input-where" data-val="알록달록 예쁜 꽃밭 마을">🌸 꽃밭 마을</button>
+              </div>
+            </div>
+
+            <!-- 질문 2 -->
+            <div class="qa-card">
+              <div class="qa-card-header">
+                <div class="qa-number-badge">2</div>
+                <div class="qa-question-text">누구를 만났나요?</div>
+              </div>
+              <input type="text" id="qa-input-who" class="text-input" placeholder="누구를 만났나요? (예: 노래하는 아기 새)" value="노래하는 아기 새" />
+              <div class="recommend-chips-box">
+                <span class="recommend-label">어린이 추천 콕!:</span>
+                <button type="button" class="choice-chip" data-target="qa-input-who" data-val="노래하는 아기 새">🐥 노래하는 아기 새</button>
+                <button type="button" class="choice-chip" data-target="qa-input-who" data-val="도토리를 찾는 꼬마 다람쥐">🐿️ 꼬마 다람쥐</button>
+                <button type="button" class="choice-chip" data-target="qa-input-who" data-val="포근한 솜사탕 구름 요정">🧚 구름 요정</button>
+                <button type="button" class="choice-chip" data-target="qa-input-who" data-val="착하고 다정한 아기 곰돌이">🐻 아기 곰돌이</button>
+              </div>
+            </div>
+
+            <!-- 질문 3 -->
+            <div class="qa-card">
+              <div class="qa-card-header">
+                <div class="qa-number-badge">3</div>
+                <div class="qa-question-text">어떤 일이 일어났나요?</div>
+              </div>
+              <input type="text" id="qa-input-event" class="text-input" placeholder="어떤 신기한 일이 일어났나요?" value="알록달록 예쁜 풍선이 하늘로 두둥실 날아올랐어요" />
+              <div class="recommend-chips-box">
+                <span class="recommend-label">어린이 추천 콕!:</span>
+                <button type="button" class="choice-chip" data-target="qa-input-event" data-val="알록달록 예쁜 풍선이 두둥실 날아갔어요">🎈 풍선이 둥실 날아갔어요</button>
+                <button type="button" class="choice-chip" data-target="qa-input-event" data-val="반짝반짝 빛나는 마법 열쇠를 발견했어요">✨ 반짝이는 보물 열쇠 발견</button>
+                <button type="button" class="choice-chip" data-target="qa-input-event" data-val="하늘에서 맛있는 딸기 비가 내렸어요">🍓 달콤한 딸기 비</button>
+                <button type="button" class="choice-chip" data-target="qa-input-event" data-val="길을 잃어버려서 발을 동동 굴렀어요">😢 발을 동동 굴렀어요</button>
+              </div>
+            </div>
+
+            <!-- 질문 4 -->
+            <div class="qa-card">
+              <div class="qa-card-header">
+                <div class="qa-number-badge">4</div>
+                <div class="qa-question-text">주인공은 무엇을 했나요?</div>
+              </div>
+              <input type="text" id="qa-input-action" class="text-input" placeholder="주인공이 어떻게 도와주거나 행동했나요?" value="폴짝폴짝 뛰어가 두 손을 꼬옥 잡아주었어요" />
+              <div class="recommend-chips-box">
+                <span class="recommend-label">어린이 추천 콕!:</span>
+                <button type="button" class="choice-chip" data-target="qa-input-action" data-val="폴짝폴짝 뛰어가 두 손을 꼬옥 잡아주었어요">🤝 두 손을 꼬옥 잡았어요</button>
+                <button type="button" class="choice-chip" data-target="qa-input-action" data-val="신나게 엉덩이춤을 추며 힘을 북돋아 주었어요">💃 신나게 춤추며 응원했어요</button>
+                <button type="button" class="choice-chip" data-target="qa-input-action" data-val="하늘 높이 슝 날아올라 풍선을 잡아주었어요">🚀 슝 날아올라 잡아주었어요</button>
+                <button type="button" class="choice-chip" data-target="qa-input-action" data-val="따뜻한 마법의 씨앗을 심어 꽃을 피웠어요">🌱 마법 꽃을 피웠어요</button>
+              </div>
+            </div>
+
+            <!-- 질문 5 -->
+            <div class="qa-card">
+              <div class="qa-card-header">
+                <div class="qa-number-badge">5</div>
+                <div class="qa-question-text">이야기는 어떻게 끝났나요?</div>
+              </div>
+              <input type="text" id="qa-input-ending" class="text-input" placeholder="마무리는 어떻게 되었나요?" value="모두 함께 하하호호 웃으며 행복하게 집으로 돌아왔어요" />
+              <div class="recommend-chips-box">
+                <span class="recommend-label">어린이 추천 콕!:</span>
+                <button type="button" class="choice-chip" data-target="qa-input-ending" data-val="모두 함께 하하호호 웃으며 행복하게 집으로 돌아왔어요">🏡 하하호호 웃으며 집으로</button>
+                <button type="button" class="choice-chip" data-target="qa-input-ending" data-val="달님에게 잘 자라고 인사하고 포근하게 잠들었어요">🌙 달님과 인사하고 코오 잠들었어요</button>
+                <button type="button" class="choice-chip" data-target="qa-input-ending" data-val="내일 또 만나서 신나게 놀기로 굳게 약속했어요">🤙 내일 또 놀기로 약속했어요</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2) 자유 이야기 모드 컨테이너 -->
+          <div id="free-mode-container" style="display: none;">
+            <div class="qa-card">
+              <label for="input-free-story" class="input-label">
+                <span>📝</span>
+                <span>우리 가족이 함께 지은 이야기</span>
+              </label>
+              <textarea id="input-free-story" class="text-input textarea-input" style="min-height: 180px;" placeholder="부모님과 어린이가 상상한 이야기를 자유롭게 적어주세요. AI가 문장을 읽고 5장면의 멋진 동화책으로 나누어 드려요!"></textarea>
+            </div>
+          </div>
+
+          <!-- 제목 & 작가 입력 바 -->
+          <div class="book-meta-bar">
+            <div class="input-field-group">
+              <label for="input-book-title" class="input-label">
+                <span>📖</span>
+                <span>그림책 제목</span>
+              </label>
+              <input type="text" id="input-book-title" class="text-input" placeholder="예: 하늘을 나는 몽실이의 숲속 모험" value="하늘을 나는 몽실이의 숲속 모험" />
+            </div>
+
+            <div class="input-field-group">
+              <label for="input-book-author" class="input-label">
+                <span>✍️</span>
+                <span>지은이 (작가)</span>
+              </label>
+              <input type="text" id="input-book-author" class="text-input" placeholder="예: 5살 지호와 엄마" value="5살 은우와 엄마" />
+            </div>
+          </div>
+
+          <!-- AI 생성 엔진 상태 및 API 설정 안내 카드 -->
+          <div class="ai-engine-status-card" id="ai-engine-status-card" style="margin: 20px 0 10px 0; padding: 14px 18px; background: #F0FFF4; border: 1.5px solid #68D391; border-radius: 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span style="font-size: 28px;">🤖</span>
+              <div>
+                <strong id="ai-engine-badge-title" style="color: #22543D; font-size: 15px;">AI 동화 스토리 엔진: 내장 스마트 분석 모드</strong>
+                <p id="ai-engine-badge-desc" style="font-size: 13px; color: #2F855A; margin: 3px 0 0 0;">
+                  * API 키 없이도 100% 무료로 5개 장면의 완벽한 그림책이 즉시 만들어집니다!
+                </p>
+              </div>
+            </div>
+            <button type="button" class="btn-secondary" id="btn-quick-api-settings" style="font-size: 13px; padding: 8px 16px; background: #FFFFFF; border-color: #38A169; color: #22543D; font-weight: 700; border-radius: 20px;">
+              🔑 Gemini API 키 입력 / 변경
+            </button>
+          </div>
+
+          <!-- 내비게이션 바 -->
+          <div class="step-nav-bar">
+            <button type="button" class="btn-secondary" id="btn-back-to-step3">
+              ⬅️ 주인공 확인으로
+            </button>
+            <button type="button" class="btn-primary" id="btn-generate-book">
+              ✨ 마법 그림책 만들기! 🪄
+            </button>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ==============================================
+           5. AI 마법 그림책 생성 로딩 (Loading)
+           ============================================== -->
+      <section class="step-panel" id="step-5">
+        <div class="storybook-card loading-box">
+          <div class="magic-cauldron">
+            <div class="magic-sparkles">🪄✨</div>
+          </div>
+
+          <h2 class="loading-title">마법 그림책을 엮는 중이에요...</h2>
+          <p class="loading-status-text" id="loading-status-text">
+            어린이의 소중한 그림을 이야기 속 주인공으로 초대하고 있어요
+          </p>
+
+          <div class="magic-progress-bar">
+            <div class="magic-progress-fill" id="magic-progress-fill"></div>
+          </div>
+
+          <p style="font-size: 13px; color: var(--text-light); margin-top: 10px;">
+            잠시만 기다려주세요. 멋진 6장의 그림책이 곧 완성됩니다!
+          </p>
+        </div>
+      </section>
+
+
+      <!-- ==============================================
+           6. 완성된 그림책 보기 (Viewer)
+           ============================================== -->
+      <section class="step-panel" id="step-6">
+        <div class="storybook-card">
+          <!-- 상단 툴바 -->
+          <div class="viewer-top-toolbar">
+            <div class="viewer-title-group">
+              <h2 id="viewer-book-title-display">하늘을 나는 몽실이의 숲속 모험</h2>
+              <p id="viewer-book-author-display">글·그림: 5살 은우와 엄마</p>
+            </div>
+
+            <div class="viewer-actions">
+              <button type="button" class="btn-action-tool highlight" id="btn-save-to-library" title="완성된 그림책을 아이 프로필 보관함에 저장하기" style="background: linear-gradient(135deg, #48BB78 0%, #38A169 100%); color: white; border: none; font-weight: 700;">
+                💾 그림책 보관함에 저장
+              </button>
+              <button type="button" class="btn-action-tool" id="btn-pick-another-child" style="background: var(--bg-soft-yellow); font-weight: 700;">
+                👦👧 다른 친구 책 만들기
+              </button>
+              <input type="file" id="page-photo-input" accept="image/*" style="display: none;" />
+              <button type="button" class="btn-action-tool" id="btn-change-page-photo" title="이 장면에 다른 표정/포즈의 사진 넣기">
+                📸 이 장면 사진 바꾸기
+              </button>
+              <button type="button" class="btn-action-tool" id="btn-edit-text-dialog" title="이야기 내용 직접 다듬기">
+                ✏️ 이야기 수정
+              </button>
+              <button type="button" class="btn-action-tool" id="btn-download-image" title="현재 페이지 그림 저장">
+                🖼️ 그림 저장
+              </button>
+              <button type="button" class="btn-action-tool highlight" id="btn-save-pdf" title="전체 그림책 PDF로 저장">
+                📄 PDF 그림책 저장
+              </button>
+              <button type="button" class="btn-action-tool" id="btn-print-book" title="실제 종이책 인쇄하기">
+                🖨️ 인쇄하기
+              </button>
+            </div>
+          </div>
+
+          <!-- 그림책 전시대 (Book Stage) -->
+          <div class="book-stage-container">
+            <!-- 이전/다음 버튼 -->
+            <button type="button" class="page-nav-btn prev-btn" id="btn-prev-page" title="이전 장">
+              ◀
+            </button>
+            
+            <div class="book-display-wrapper" id="book-display-wrapper">
+              <canvas id="active-page-canvas" class="book-page-canvas" width="1200" height="900"></canvas>
+            </div>
+
+            <button type="button" class="page-nav-btn next-btn" id="btn-next-page" title="다음 장">
+              ▶
+            </button>
+          </div>
+
+          <!-- 음성 구연동화 읽어주기 (TTS) 바: 누르면 0초 즉각 낭독하는 귀여운 어린이 목소리 -->
+          <div class="tts-controls-bar" style="display: flex; align-items: center; justify-content: center; gap: 12px; margin: 16px 0;">
+            <button type="button" class="btn-tts-speak" id="btn-tts-speak" style="background: linear-gradient(135deg, #FF7052 0%, #E85B3F 100%); color: white; border: none; border-radius: 9999px; padding: 12px 34px; font-weight: bold; font-size: 16px; cursor: pointer; display: flex; align-items: center; gap: 10px; box-shadow: 0 4px 14px rgba(232, 91, 63, 0.35);">
+              <span id="tts-icon">👧</span>
+              <span id="tts-label">어린이 목소리로 읽기</span>
+            </button>
+          </div>
+
+          <!-- 하단 페이지 썸네일 스트립 -->
+          <div class="page-thumbnail-strip" id="page-thumbnail-strip">
+            <!-- JS에서 동적 주입 -->
+          </div>
+
+          <!-- 하단 내비게이션 바 -->
+          <div class="step-nav-bar">
+            <button type="button" class="btn-secondary" id="btn-restart-making">
+              🔄 처음부터 다시 만들기
+            </button>
+            <button type="button" class="btn-primary" id="btn-read-from-start">
+              📖 표지부터 다시 읽기
+            </button>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- 하단 푸터 -->
+    <footer class="app-footer">
+      <p>유치원 부모참여수업을 위해 제작된 어린이 창작 도구입니다. 주인공은 언제나 어린이의 순수한 상상력입니다. 💖</p>
+    </footer>
+
+    <!-- ==============================================
+         텍스트 수정 모달 다이얼로그
+         ============================================== -->
+    <div class="edit-text-dialog" id="edit-text-modal">
+      <div class="edit-dialog-content">
+        <h3 style="font-family: var(--font-storybook); font-size: 22px; color: var(--primary-coral);">
+          ✏️ 이야기 글자 수정하기
+        </h3>
+        <p style="font-size: 14px; color: var(--text-muted);">
+          현재 페이지의 이야기를 아이와 함께 원하는 대로 바꾸어보세요!
+        </p>
+        <textarea id="modal-edit-textarea" class="text-input textarea-input" style="min-height: 120px;"></textarea>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+          <button type="button" class="btn-secondary" id="btn-cancel-edit">취소</button>
+          <button type="button" class="btn-primary" id="btn-save-edit">수정 완료</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==============================================
+         부모참여수업 활동 안내 모달
+         ============================================== -->
+    <div class="modal-overlay" id="guide-modal">
+      <div class="modal-card">
+        <button type="button" class="modal-close-btn" id="btn-close-guide">&times;</button>
+        <h2 style="font-family: var(--font-storybook); font-size: 26px; color: var(--primary-coral);">
+          🌟 유치원 부모참여수업 안내 가이드
+        </h2>
+        <div style="display: flex; flex-direction: column; gap: 14px; font-size: 15px; color: var(--text-main);">
+          <div style="background: var(--bg-soft-yellow); padding: 14px; border-radius: var(--border-radius-sm);">
+            <strong>1. 활동의 주인공은 아이입니다</strong><br>
+            아이가 자유롭게 도화지에 크레용으로 그린 소중한 그림을 존중해 주세요. 완벽하게 그리지 않아도 괜찮아요!
+          </div>
+          <div style="background: var(--bg-soft-blue); padding: 14px; border-radius: var(--border-radius-sm);">
+            <strong>2. 스마트 배경 투명화 팁</strong><br>
+            흰 스케치북이나 종이에 그린 그림을 카메라로 정면에서 촬영하면 그림 주변 종이가 자동으로 투명해져 이야기 속 배경에 쏙 들어갑니다.
+          </div>
+          <div style="background: var(--bg-soft-pink); padding: 14px; border-radius: var(--border-radius-sm);">
+            <strong>3. 대화하며 질문을 던져주세요</strong><br>
+            "어디에 가고 싶어?", "거기서 누구를 만나볼까?" 아이의 엉뚱하고 기발한 대답을 그대로 적어주시면 멋진 동화책이 탄생합니다.
+          </div>
+          <div style="background: #F0FFF4; padding: 14px; border-radius: var(--border-radius-sm);">
+            <strong>4. 종이책으로 인쇄해 보세요</strong><br>
+            완성된 그림책을 [📄 PDF 저장]하거나 [🖨️ 인쇄하기]를 눌러 컬러 출력하면, 아이가 직접 넘겨볼 수 있는 진짜 종이 동화책이 됩니다!
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==============================================
+         설정 모달 (Gemini API 키 옵션 등)
+         ============================================== -->
+    <div class="modal-overlay" id="settings-modal">
+      <div class="modal-card">
+        <button type="button" class="modal-close-btn" id="btn-close-settings">&times;</button>
+        <h2 style="font-family: var(--font-storybook); font-size: 24px; color: var(--text-main);">
+          ⚙️ Gemini API 및 AI 설정
+        </h2>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+          <div class="input-field-group">
+            <label class="input-label" for="setting-gemini-key">
+              <span>🤖</span>
+              <span>Google Gemini API 키</span>
+            </label>
+            <input type="password" id="setting-gemini-key" class="text-input" placeholder="AIzaSy... 형식의 API 키를 입력하세요" />
+            <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn-secondary" id="btn-test-api-key" style="font-size: 13px; padding: 6px 14px;">
+                🧪 API 키 연결 테스트
+              </button>
+              <button type="button" class="btn-secondary" id="btn-clear-api-key" style="font-size: 13px; padding: 6px 14px; color: #E53E3E; border-color: #FEB2B2;">
+                🗑️ 키 삭제 (내장 엔진 사용)
+              </button>
+            </div>
+            <div id="api-test-status" style="font-size: 13px; margin-top: 8px; font-weight: 600; display: none;"></div>
+            <div style="background: #EBF8FF; border-left: 4px solid #3182CE; padding: 12px 14px; border-radius: 6px; font-size: 13px; color: #2B6CB0; margin-top: 10px; line-height: 1.6;">
+              <strong>💡 Gemini API 키 발급 방법 (무료):</strong><br>
+              1. <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" style="color: #2B6CB0; text-decoration: underline; font-weight: bold;">Google AI Studio 키 발급 페이지</a>에 접속하여 Google 계정으로 로그인합니다.<br>
+              2. <strong>[Create API key]</strong> 버튼을 누르면 무료 키가 즉시 생성됩니다.<br>
+              3. 생성된 키를 복사하여 위 입력창에 넣고 [저장하기]를 누르면 완료!<br>
+              <span style="color: #C53030; font-weight: bold;">* API 키를 넣지 않아도 자체 내장된 지능형 동화 엔진으로 고품질 그림책이 100% 무료/오프라인으로 완벽 생성됩니다!</span>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: flex-end; gap: 10px;">
+            <button type="button" class="btn-secondary" id="btn-cancel-settings">닫기</button>
+            <button type="button" class="btn-primary" id="btn-save-settings">저장하기</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==============================================
+         Qwen3-TTS 내 목소리 복제 모달
+         ============================================== -->
+    <div class="modal-overlay" id="voice-clone-modal">
+      <div class="modal-card" style="max-width: 640px; max-height: 90vh; overflow-y: auto;">
+        <button type="button" class="modal-close-btn" id="btn-close-voice-modal-x">&times;</button>
+        <h2 style="font-family: var(--font-storybook); font-size: 24px; color: #DD6B20; display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+          <span>🎙️</span>
+          <span>내 목소리 AI 복제 (Qwen3-TTS)</span>
+        </h2>
+        <p style="font-size: 14px; color: var(--text-muted); margin-bottom: 16px;">
+          엄마, 아빠의 목소리를 10초만 등록하면 완성된 동화책을 내 목소리로 다정하게 읽어줍니다.
+        </p>
+
+        <!-- 1. 서버 설정 섹션 -->
+        <div style="background: #F7FAFC; border: 1px solid #E2E8F0; border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+          <label style="font-weight: bold; font-size: 14px; color: #2D3748; display: block; margin-bottom: 6px;">
+            1️⃣ Qwen3-TTS 서버 주소
+          </label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="text" id="tts-server-url" class="text-input" style="flex: 1;" placeholder="http://127.0.0.1:8000 또는 https://xxxx.gradio.live" value="http://127.0.0.1:8000" />
+            <button type="button" class="btn-secondary" id="btn-test-tts-server" style="white-space: nowrap; font-size: 13px; padding: 8px 14px;">
+              연결 테스트
+            </button>
+          </div>
+          <div id="tts-server-status" style="font-size: 12px; margin-top: 6px; font-weight: 600; color: #4A5568;">
+            * 내 컴퓨터에서 <code>python qwen_tts_server.py</code> 또는 <code>run_narration_web.bat</code> 실행 시 즉시 연결됩니다.
+          </div>
+        </div>
+
+        <!-- 2. 참조 목소리 녹음 / 업로드 섹션 -->
+        <div style="background: #FFF5F5; border: 1px solid #FED7D7; border-radius: 8px; padding: 14px; margin-bottom: 14px;">
+          <label style="font-weight: bold; font-size: 14px; color: #9B2C2C; display: block; margin-bottom: 6px;">
+            2️⃣ 목소리 10초 녹음 (또는 reference.wav 업로드)
+          </label>
+          <div style="background: white; border: 1px solid #FEB2B2; border-radius: 6px; padding: 10px; font-size: 13px; color: #4A5568; line-height: 1.5; margin-bottom: 10px;">
+            <strong>📖 녹음 대본 예시 (아래 문장을 3~10초 동안 편안하게 읽어주세요):</strong><br>
+            <span id="voice-sample-script" style="color: #2D3748; font-weight: 500;">
+              "어느 화창한 아침, 밝은미소 해솔반 김나연이 길을 나섰어요. 살랑살랑 부는 바람을 맞으며 무지개 피어난 초록 숲속으로 씩씩하게 걸어갔답니다."
+            </span>
+          </div>
+
+          <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
+            <button type="button" class="btn-primary" id="btn-start-record" style="background: #E53E3E; font-size: 13px; padding: 8px 16px;">
+              🔴 마이크 녹음 시작
+            </button>
+            <button type="button" class="btn-secondary" id="btn-stop-record" style="font-size: 13px; padding: 8px 16px; display: none;">
+              ⏹️ 녹음 중지
+            </button>
+            <label class="btn-secondary" style="font-size: 13px; padding: 8px 14px; cursor: pointer; display: inline-flex; align-items: center; margin: 0;">
+              📁 파일 선택 (.wav/.mp3)
+              <input type="file" id="voice-file-input" accept="audio/*" style="display: none;" />
+            </label>
+            <span id="record-status-text" style="font-size: 13px; color: #718096; font-weight: 500;">
+              녹음 대기 중
+            </span>
+          </div>
+
+          <!-- 미리듣기 오디오 -->
+          <audio id="voice-preview-audio" controls style="display: none; width: 100%; margin-top: 10px;"></audio>
+        </div>
+
+        <!-- 3. 등록 및 초기화 액션 버튼 -->
+        <div id="voice-registration-status" style="font-size: 13px; font-weight: bold; margin-bottom: 12px; display: none;"></div>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <button type="button" class="btn-secondary" id="btn-clear-registered-voice" style="font-size: 13px; color: #E53E3E;">
+            🗑️ 등록 음성 초기화
+          </button>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn-secondary" id="btn-close-voice-modal">닫기</button>
+            <button type="button" class="btn-primary" id="btn-submit-register-voice" style="background: linear-gradient(135deg, #ED8936 0%, #DD6B20 100%);">
+              🚀 내 목소리 AI 등록하기
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ==============================================
+         해솔반 완성 그림책 보관함 모달 (저장, 다시보기, 수정, 삭제)
+         ============================================== -->
+    <div class="modal-overlay" id="library-modal">
+      <div class="modal-card" style="max-width: 680px; max-height: 90vh; overflow-y: auto;">
+        <button type="button" class="modal-close-btn" id="btn-close-library-modal">&times;</button>
+        <h2 style="font-family: var(--font-storybook); font-size: 24px; color: var(--primary-coral); display: flex; align-items: center; gap: 8px;">
+          <span>📚</span>
+          <span id="library-modal-title">해솔반 완성 그림책 보관함</span>
+        </h2>
+        <p style="font-size: 13.5px; color: var(--text-muted); margin-bottom: 12px;">
+          아이들과 함께 만든 소중한 그림책들입니다. 언제든 다시 열어보거나 이야기를 수정하고, 삭제할 수 있어요.
+        </p>
+        <div id="library-books-list" style="display: flex; flex-direction: column; gap: 12px; max-height: 60vh; overflow-y: auto;">
+          <!-- JS에서 동적 주입 -->
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
