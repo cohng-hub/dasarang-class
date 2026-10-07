@@ -1,11 +1,15 @@
 // Qwen3-TTS AI 목소리 복제 & 브라우저 귀여운 어린이 음성 구연 통합 서비스
 export class TtsService {
   constructor() {
-    const defaultHost = (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
-      ? `http://${window.location.hostname}:8000`
-      : 'http://127.0.0.1:8000';
+    const isRemote = (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1');
+    const defaultHost = isRemote ? '' : 'http://127.0.0.1:8000';
     const safeGetStorage = (key, fallback = '') => (typeof localStorage !== 'undefined' && localStorage ? localStorage.getItem(key) || fallback : fallback);
-    this.serverUrl = (safeGetStorage('qwen_tts_server_url', defaultHost)).trim();
+    let storedHost = (safeGetStorage('qwen_tts_server_url', defaultHost)).trim();
+    if (isRemote && storedHost.includes(':8000')) {
+      storedHost = '';
+      if (typeof localStorage !== 'undefined') localStorage.setItem('qwen_tts_server_url', '');
+    }
+    this.serverUrl = storedHost;
     this.refText = (safeGetStorage('qwen_tts_ref_text', '어느 화창한 아침, 밝은미소 해솔반 김나연이 길을 나섰어요. 살랑살랑 부는 바람을 맞으며 무지개 피어난 초록 숲속으로 씩씩하게 걸어갔답니다.')).trim();
     this.hasVoice = safeGetStorage('qwen_tts_has_voice', 'false') === 'true';
     this.ttsMode = 'child'; // 기본값: 'child' (누르면 바로 읽어주는 귀여운 어린이 목소리, 대기시간 0초)

@@ -203,26 +203,8 @@
                   <canvas id="character-preview-canvas" width="300" height="260"></canvas>
                 </div>
                 <p style="font-size: 13px; font-weight: 700; color: #2B6CB0; text-align: center; margin-top: 10px;">
-                  ✨ 도화지 배경을 투명하게 지운 캐릭터 스티커입니다!
+                  ✨ 배경이 투명하게 제거된 다이컷 스티커입니다!
                 </p>
-
-                <!-- 도화지 배경 제거 감도 조절 (실시간 현장 조명/그림자 대응) -->
-                <div class="paper-removal-controls" style="margin-top: 10px; background: #F8FAFC; padding: 10px 12px; border-radius: 12px; border: 1.5px solid #E2E8F0;">
-                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                    <span style="font-size: 12.5px; font-weight: 700; color: #1E293B;">✂️ 도화지 배경 지우기 감도</span>
-                    <span id="label-paper-threshold" style="font-size: 11.5px; font-weight: 700; color: #2563EB; background: #EFF6FF; padding: 2px 8px; border-radius: 8px; border: 1px solid #BFDBFE;">보통 (45%)</span>
-                  </div>
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <span style="font-size: 11px; color: #64748B;">✏️ 연한선</span>
-                    <input type="range" id="slider-paper-threshold" min="15" max="85" value="45" style="flex: 1; accent-color: #2563EB; cursor: pointer; height: 6px;" />
-                    <span style="font-size: 11px; color: #64748B;">🧼 싹 지우기</span>
-                  </div>
-                  <div style="display: flex; gap: 6px; margin-top: 8px; justify-content: center;">
-                    <button type="button" class="btn-paper-preset" data-val="30" style="font-size: 11.5px; padding: 4px 10px; border-radius: 6px; border: 1px solid #CBD5E0; background: white; cursor: pointer;">✏️ 연한 연필선</button>
-                    <button type="button" class="btn-paper-preset active" data-val="45" style="font-size: 11.5px; padding: 4px 10px; border-radius: 6px; border: 1px solid #2563EB; background: #EFF6FF; color: #2563EB; font-weight: 700; cursor: pointer;">✨ 추천 (기본)</button>
-                    <button type="button" class="btn-paper-preset" data-val="65" style="font-size: 11.5px; padding: 4px 10px; border-radius: 6px; border: 1px solid #CBD5E0; background: white; cursor: pointer;">🧼 도화지 싹 지우기</button>
-                  </div>
-                </div>
               </div>
             </div>
 

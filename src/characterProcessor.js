@@ -19,7 +19,7 @@ export class CharacterProcessor {
    * 복잡한 교실/방 배경도 깨끗하게 지우고 오직 아이 인물만 선명하게 추출합니다.
    * 서버 오프라인 시 클라이언트 측 지능형 필터로 자동 폴백
    */
-  static async removeBackgroundWithAI(sourceImgOrBlob, serverUrl = 'http://127.0.0.1:8000') {
+  static async removeBackgroundWithAI(sourceImgOrBlob, serverUrl = '') {
     try {
       let blob;
       let img = null;
@@ -36,9 +36,9 @@ export class CharacterProcessor {
       }
 
       if (img) {
-        const maxDim = 512;
-        let w = img.naturalWidth || img.width || 512;
-        let h = img.naturalHeight || img.height || 512;
+        const maxDim = 800;
+        let w = img.naturalWidth || img.width || 800;
+        let h = img.naturalHeight || img.height || 800;
         if (Math.max(w, h) > maxDim) {
           if (w > h) {
             h = Math.round(h * (maxDim / w));
@@ -59,25 +59,45 @@ export class CharacterProcessor {
         const formData = new FormData();
         formData.append('image_file', blob, 'photo.png');
 
-        const cleanUrl = (serverUrl || 'http://127.0.0.1:8000').replace(/\/+$/, '');
-        const res = await fetch(`${cleanUrl}/api/remove-bg`, {
-          method: 'POST',
-          body: formData
-        });
+        // 우선순위 엔드포인트 후보군:
+        // 1. 상대 경로 '/api/remove-bg' (Vite 프록시 - 모바일, 터널, 로컬 공통 100% 작동)
+        // 2. 서버 설정 URL
+        // 3. 로컬 직접 포트 'http://127.0.0.1:8000/api/remove-bg'
+        const candidateEndpoints = ['/api/remove-bg'];
+        if (serverUrl && typeof serverUrl === 'string' && serverUrl.trim() !== '') {
+          const clean = serverUrl.trim().replace(/\/+$/, '');
+          candidateEndpoints.unshift(`${clean}/api/remove-bg`);
+        }
+        candidateEndpoints.push('http://127.0.0.1:8000/api/remove-bg');
+        const uniqueEndpoints = [...new Set(candidateEndpoints)];
 
-        if (res.ok) {
-          const resBlob = await res.blob();
-          const imgUrl = URL.createObjectURL(resBlob);
-          const cutoutImg = await CharacterProcessor.loadImage(imgUrl);
-          URL.revokeObjectURL(imgUrl);
+        for (const endpoint of uniqueEndpoints) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 7000);
+            const res = await fetch(endpoint, {
+              method: 'POST',
+              body: formData,
+              signal: controller.signal
+            });
+            clearTimeout(timeoutId);
 
-          const canvas = document.createElement('canvas');
-          canvas.width = cutoutImg.naturalWidth;
-          canvas.height = cutoutImg.naturalHeight;
-          const ctx = canvas.getContext('2d');
-          ctx.drawImage(cutoutImg, 0, 0);
-          // AI 서버가 책상을 분리한 뒤에도 남아있는 흰 도화지 배경을 확실하게 2차 투명화!
-          return CharacterProcessor.removePaperBackground(canvas, 45, false, 'rounded');
+            if (res.ok) {
+              const resBlob = await res.blob();
+              const imgUrl = URL.createObjectURL(resBlob);
+              const cutoutImg = await CharacterProcessor.loadImage(imgUrl);
+              URL.revokeObjectURL(imgUrl);
+
+              const canvas = document.createElement('canvas');
+              canvas.width = cutoutImg.naturalWidth;
+              canvas.height = cutoutImg.naturalHeight;
+              const ctx = canvas.getContext('2d');
+              ctx.drawImage(cutoutImg, 0, 0);
+              return CharacterProcessor.autoCrop(canvas);
+            }
+          } catch (endpointErr) {
+            // 다음 엔드포인트 시도
+          }
         }
       }
     } catch (e) {
@@ -85,7 +105,7 @@ export class CharacterProcessor {
     }
 
     if (sourceImgOrBlob instanceof HTMLImageElement || sourceImgOrBlob instanceof HTMLCanvasElement) {
-      return CharacterProcessor.removePaperBackground(sourceImgOrBlob, 45, false, 'rounded');
+      return CharacterProcessor.removePaperBackground(sourceImgOrBlob, 55, false, 'rounded');
     }
     return null;
   }

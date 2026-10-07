@@ -170,8 +170,6 @@ class PictureBookApp {
     this.btnTriggerUpload = document.getElementById('btn-trigger-upload');
     this.btnTriggerCamera = document.getElementById('btn-trigger-camera');
     this.previewCanvas = document.getElementById('character-preview-canvas');
-    this.sliderPaperThreshold = document.getElementById('slider-paper-threshold');
-    this.labelPaperThreshold = document.getElementById('label-paper-threshold');
     this.inputCharName = document.getElementById('input-char-name');
     this.inputCharDesc = document.getElementById('input-char-desc');
     this.badgeCharName = document.getElementById('badge-char-name');
@@ -427,37 +425,47 @@ class PictureBookApp {
       if (validFiles.length === 0) return;
 
       if (this.multiPhotoCountBadge) {
-        this.multiPhotoCountBadge.textContent = '⏳ AI 배경 지우는 중...';
+        this.multiPhotoCountBadge.textContent = '⏳ AI 투명 배경 생성 중...';
         this.multiPhotoCountBadge.style.background = '#3182CE';
       }
 
-      // 1. 즉시 모든 이미지 읽어 화면에 표시 (0.05초 즉각 반응)
-      const newItems = [];
-      for (let i = 0; i < validFiles.length; i++) {
-        const file = validFiles[i];
-        const dataUrl = await new Promise((res) => {
-          const reader = new FileReader();
-          reader.onload = ev => res(ev.target.result);
-          reader.readAsDataURL(file);
-        });
-        const img = await CharacterProcessor.loadImage(dataUrl);
-        const tempCanvas = CharacterProcessor.removePaperBackground(img, 45, false, 'rounded');
-        const slotIndex = this.uploadedPhotos.length + newItems.length;
-        const initialName = this.extractFriendlyName(file.name, slotIndex);
-        const hasProtagonist = this.uploadedPhotos.some(p => p.isProtagonist) || newItems.some(p => p.isProtagonist);
-        const item = {
-          id: 'photo_' + Date.now() + '_' + i,
-          rawImage: img,
-          transparentCanvas: tempCanvas,
-          name: initialName,
-          label: this.getSlotLabel(slotIndex),
-          isProtagonist: !hasProtagonist
-        };
-        newItems.push(item);
+      // 초고속 AI 배경 제거를 각 이미지별로 병렬 실행하여 완성된 투명 캔버스로 즉시 등록
+      const startIndex = this.uploadedPhotos.length;
+      const processedItems = await Promise.all(validFiles.map(async (file, i) => {
+        try {
+          const dataUrl = await new Promise((res) => {
+            const reader = new FileReader();
+            reader.onload = ev => res(ev.target.result);
+            reader.readAsDataURL(file);
+          });
+          const img = await CharacterProcessor.loadImage(dataUrl);
+          // AI 배경 제거로 완벽한 투명 누끼 캔버스 생성
+          const aiCanvas = await CharacterProcessor.removeBackgroundWithAI(img, this.ttsService.serverUrl);
+          const slotIndex = startIndex + i;
+          const initialName = this.extractFriendlyName(file.name, slotIndex);
+          return {
+            id: 'photo_' + Date.now() + '_' + i,
+            rawImage: img,
+            transparentCanvas: aiCanvas,
+            name: initialName,
+            label: this.getSlotLabel(slotIndex),
+            isProtagonist: false
+          };
+        } catch (err) {
+          console.warn('사진 처리 실패:', err);
+          return null;
+        }
+      }));
+
+      const successfulItems = processedItems.filter(item => item !== null);
+      if (successfulItems.length === 0) return;
+
+      const hasProtagonist = this.uploadedPhotos.some(p => p.isProtagonist);
+      if (!hasProtagonist && successfulItems.length > 0) {
+        successfulItems[0].isProtagonist = true;
       }
 
-      const startIndex = this.uploadedPhotos.length;
-      this.uploadedPhotos.push(...newItems);
+      this.uploadedPhotos.push(...successfulItems);
       this.selectedPhotoIndex = startIndex;
       const proto = this.uploadedPhotos.find(p => p.isProtagonist) || this.uploadedPhotos[0];
       if (proto) {
@@ -467,30 +475,10 @@ class PictureBookApp {
         if (this.badgeCharName) this.badgeCharName.textContent = this.character.name;
         this.updateDefaultTitles();
       }
-      this.character.isPhoto = false;
+
       this.renderPreviewCanvas();
       this.renderPhotoSlots();
       this.updateWhoRecommendationChips();
-      soundManager.playPop();
-
-      // 2. 백그라운드에서 AI 누끼(0.24초 초고속) 실시간 교체
-      const tasks = newItems.map(async (item) => {
-        try {
-          const aiCanvas = await CharacterProcessor.removeBackgroundWithAI(item.rawImage, this.ttsService.serverUrl);
-          if (aiCanvas) {
-            item.transparentCanvas = aiCanvas;
-            if (this.uploadedPhotos[this.selectedPhotoIndex] === item) {
-              this.character.transparentCanvas = aiCanvas;
-              this.renderPreviewCanvas();
-            }
-            this.renderPhotoSlots();
-          }
-        } catch (err) {
-          console.warn('AI 배경 지우기 실패:', err);
-        }
-      });
-
-      await Promise.all(tasks);
 
       if (this.multiPhotoCountBadge) {
         this.multiPhotoCountBadge.textContent = `${this.uploadedPhotos.length}장 등록됨`;
@@ -558,41 +546,6 @@ class PictureBookApp {
       });
     });
 
-    // 도화지 배경 지우기 감도 슬라이더 및 프리셋 버튼 이벤트
-    if (this.sliderPaperThreshold) {
-      this.sliderPaperThreshold.addEventListener('input', (e) => {
-        const val = parseInt(e.target.value, 10);
-        this.character.threshold = val;
-        this.updateThresholdLabel(val);
-        this.reprocessCharacterImage();
-      });
-    }
-
-    document.querySelectorAll('.btn-paper-preset').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const val = parseInt(btn.getAttribute('data-val'), 10);
-        this.character.threshold = val;
-        if (this.sliderPaperThreshold) this.sliderPaperThreshold.value = val;
-        this.updateThresholdLabel(val);
-        document.querySelectorAll('.btn-paper-preset').forEach(b => {
-          const isActive = (b === btn);
-          b.classList.toggle('active', isActive);
-          if (isActive) {
-            b.style.borderColor = '#2563EB';
-            b.style.background = '#EFF6FF';
-            b.style.color = '#2563EB';
-            b.style.fontWeight = '700';
-          } else {
-            b.style.borderColor = '#CBD5E0';
-            b.style.background = 'white';
-            b.style.color = '#4A5568';
-            b.style.fontWeight = 'normal';
-          }
-        });
-        soundManager.playPop();
-        this.reprocessCharacterImage();
-      });
-    });
 
     // 스텝 3 -> 2 (친구 다시 선택), 3 -> 4 (우리 이야기 만들기)
     if (this.btnBackToStep2) {
@@ -1100,18 +1053,26 @@ class PictureBookApp {
       this.goToStep(3);
     }
 
-    // 원아 사진 즉시 로드 및 표시
+    // 원아 사진 즉시 로드 및 AI 배경 제거로 완벽한 투명 누끼 생성
     const imgSrc = child.photo || child.image;
     try {
+      if (this.multiPhotoCountBadge) {
+        this.multiPhotoCountBadge.textContent = '⏳ AI 투명 배경 생성 중...';
+        this.multiPhotoCountBadge.style.background = '#3182CE';
+      }
+
       const img = await CharacterProcessor.loadImage(imgSrc);
       this.character.rawImage = img;
+      this.character.isPhoto = true;
 
-      // 1. 빠른 로컬 모드로 캔버스 즉각 렌더링 (화면 공백 방지)
-      this.reprocessCharacterImage();
+      // 즉시 AI 배경 제거 수행 (0.18초 초고속)
+      const aiCanvas = await CharacterProcessor.removeBackgroundWithAI(img, this.ttsService.serverUrl);
+      this.character.transparentCanvas = aiCanvas;
+
       this.uploadedPhotos = [{
         id: 'photo_main',
         rawImage: img,
-        transparentCanvas: this.character.transparentCanvas,
+        transparentCanvas: aiCanvas,
         name: child.name,
         label: '1장: 표지·출발',
         isProtagonist: true
@@ -1121,64 +1082,26 @@ class PictureBookApp {
       this.updateWhoRecommendationChips();
       this.renderPreviewCanvas();
 
-      // 2. 백그라운드에서 고화질 AI 누끼 비동기 처리 (UI 멈춤 방지)
-      CharacterProcessor.removeBackgroundWithAI(img, this.ttsService.serverUrl).then(aiCanvas => {
-        if (aiCanvas && this.character.name === child.name) {
-          this.character.transparentCanvas = aiCanvas;
-          if (this.uploadedPhotos[0]) {
-            this.uploadedPhotos[0].transparentCanvas = aiCanvas;
-          }
-          this.renderPhotoSlots();
-          this.renderPreviewCanvas();
-        }
-      }).catch(err => {
-        console.warn('AI 배경 제거 비동기 처리 실패(로컬 유지):', err);
-      });
-    } catch (err) {
-      console.error('원아 사진 로드 실패:', err);
-      this.reprocessCharacterImage();
-    }
-  }
-
-  reprocessCharacterImage() {
-    if (!this.character.rawImage) return;
-
-    // 종이 배경 스마트 투명화 및 크롭
-    const processed = CharacterProcessor.removePaperBackground(
-      this.character.rawImage,
-      this.character.threshold,
-      this.character.isPhoto,
-      this.character.shapeMode,
-      {
-        fillBodyWhite: this.character.fillBodyWhite,
-        smartEnhance: true
+      if (this.multiPhotoCountBadge) {
+        this.multiPhotoCountBadge.textContent = '1장 등록됨';
+        this.multiPhotoCountBadge.style.background = '#38A169';
       }
-    );
-    this.character.transparentCanvas = processed;
-    if (this.uploadedPhotos && this.uploadedPhotos[this.selectedPhotoIndex]) {
-      this.uploadedPhotos[this.selectedPhotoIndex].transparentCanvas = processed;
-      this.renderPhotoSlots();
+      soundManager.playMagic();
+    } catch (err) {
+      console.error('원아 사진 로드 및 AI 배경 제거 실패:', err);
     }
-    this.renderPreviewCanvas();
   }
 
-  updateThresholdLabel(val) {
-    if (!this.labelPaperThreshold) return;
-    if (val <= 35) {
-      this.labelPaperThreshold.textContent = `연한 선 보호 (${val}%)`;
-      this.labelPaperThreshold.style.color = '#D97706';
-      this.labelPaperThreshold.style.background = '#FEF3C7';
-      this.labelPaperThreshold.style.borderColor = '#FDE68A';
-    } else if (val >= 60) {
-      this.labelPaperThreshold.textContent = `강력 지우기 (${val}%)`;
-      this.labelPaperThreshold.style.color = '#059669';
-      this.labelPaperThreshold.style.background = '#D1FAE5';
-      this.labelPaperThreshold.style.borderColor = '#A7F3D0';
-    } else {
-      this.labelPaperThreshold.textContent = `보통 (${val}%)`;
-      this.labelPaperThreshold.style.color = '#2563EB';
-      this.labelPaperThreshold.style.background = '#EFF6FF';
-      this.labelPaperThreshold.style.borderColor = '#BFDBFE';
+  async reprocessCharacterImage() {
+    if (!this.character.rawImage) return;
+    const processed = await CharacterProcessor.removeBackgroundWithAI(this.character.rawImage, this.ttsService.serverUrl);
+    if (processed) {
+      this.character.transparentCanvas = processed;
+      if (this.uploadedPhotos && this.uploadedPhotos[this.selectedPhotoIndex]) {
+        this.uploadedPhotos[this.selectedPhotoIndex].transparentCanvas = processed;
+        this.renderPhotoSlots();
+      }
+      this.renderPreviewCanvas();
     }
   }
 
@@ -1863,10 +1786,6 @@ class PictureBookApp {
     const photo = this.uploadedPhotos[index];
     this.character.rawImage = photo.rawImage;
     this.character.transparentCanvas = photo.transparentCanvas;
-    if (this.sliderPaperThreshold) {
-      this.sliderPaperThreshold.value = this.character.threshold || 45;
-      this.updateThresholdLabel(this.character.threshold || 45);
-    }
     this.renderPreviewCanvas();
     this.renderPhotoSlots();
     soundManager.playSnap();
