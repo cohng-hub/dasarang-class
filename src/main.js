@@ -170,6 +170,8 @@ class PictureBookApp {
     this.btnTriggerUpload = document.getElementById('btn-trigger-upload');
     this.btnTriggerCamera = document.getElementById('btn-trigger-camera');
     this.previewCanvas = document.getElementById('character-preview-canvas');
+    this.sliderPaperThreshold = document.getElementById('slider-paper-threshold');
+    this.labelPaperThreshold = document.getElementById('label-paper-threshold');
     this.inputCharName = document.getElementById('input-char-name');
     this.inputCharDesc = document.getElementById('input-char-desc');
     this.badgeCharName = document.getElementById('badge-char-name');
@@ -553,6 +555,42 @@ class PictureBookApp {
         const current = this.inputCharDesc.value;
         this.inputCharDesc.value = current ? `${current}, ${tagText}` : tagText;
         this.character.description = this.inputCharDesc.value;
+      });
+    });
+
+    // 도화지 배경 지우기 감도 슬라이더 및 프리셋 버튼 이벤트
+    if (this.sliderPaperThreshold) {
+      this.sliderPaperThreshold.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value, 10);
+        this.character.threshold = val;
+        this.updateThresholdLabel(val);
+        this.reprocessCharacterImage();
+      });
+    }
+
+    document.querySelectorAll('.btn-paper-preset').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const val = parseInt(btn.getAttribute('data-val'), 10);
+        this.character.threshold = val;
+        if (this.sliderPaperThreshold) this.sliderPaperThreshold.value = val;
+        this.updateThresholdLabel(val);
+        document.querySelectorAll('.btn-paper-preset').forEach(b => {
+          const isActive = (b === btn);
+          b.classList.toggle('active', isActive);
+          if (isActive) {
+            b.style.borderColor = '#2563EB';
+            b.style.background = '#EFF6FF';
+            b.style.color = '#2563EB';
+            b.style.fontWeight = '700';
+          } else {
+            b.style.borderColor = '#CBD5E0';
+            b.style.background = 'white';
+            b.style.color = '#4A5568';
+            b.style.fontWeight = 'normal';
+          }
+        });
+        soundManager.playPop();
+        this.reprocessCharacterImage();
       });
     });
 
@@ -1117,7 +1155,31 @@ class PictureBookApp {
       }
     );
     this.character.transparentCanvas = processed;
+    if (this.uploadedPhotos && this.uploadedPhotos[this.selectedPhotoIndex]) {
+      this.uploadedPhotos[this.selectedPhotoIndex].transparentCanvas = processed;
+      this.renderPhotoSlots();
+    }
     this.renderPreviewCanvas();
+  }
+
+  updateThresholdLabel(val) {
+    if (!this.labelPaperThreshold) return;
+    if (val <= 35) {
+      this.labelPaperThreshold.textContent = `연한 선 보호 (${val}%)`;
+      this.labelPaperThreshold.style.color = '#D97706';
+      this.labelPaperThreshold.style.background = '#FEF3C7';
+      this.labelPaperThreshold.style.borderColor = '#FDE68A';
+    } else if (val >= 60) {
+      this.labelPaperThreshold.textContent = `강력 지우기 (${val}%)`;
+      this.labelPaperThreshold.style.color = '#059669';
+      this.labelPaperThreshold.style.background = '#D1FAE5';
+      this.labelPaperThreshold.style.borderColor = '#A7F3D0';
+    } else {
+      this.labelPaperThreshold.textContent = `보통 (${val}%)`;
+      this.labelPaperThreshold.style.color = '#2563EB';
+      this.labelPaperThreshold.style.background = '#EFF6FF';
+      this.labelPaperThreshold.style.borderColor = '#BFDBFE';
+    }
   }
 
   renderPreviewCanvas() {
@@ -1801,6 +1863,10 @@ class PictureBookApp {
     const photo = this.uploadedPhotos[index];
     this.character.rawImage = photo.rawImage;
     this.character.transparentCanvas = photo.transparentCanvas;
+    if (this.sliderPaperThreshold) {
+      this.sliderPaperThreshold.value = this.character.threshold || 45;
+      this.updateThresholdLabel(this.character.threshold || 45);
+    }
     this.renderPreviewCanvas();
     this.renderPhotoSlots();
     soundManager.playSnap();

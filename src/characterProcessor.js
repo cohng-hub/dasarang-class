@@ -76,7 +76,8 @@ export class CharacterProcessor {
           canvas.height = cutoutImg.naturalHeight;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(cutoutImg, 0, 0);
-          return CharacterProcessor.autoCrop(canvas);
+          // AI 서버가 책상을 분리한 뒤에도 남아있는 흰 도화지 배경을 확실하게 2차 투명화!
+          return CharacterProcessor.removePaperBackground(canvas, 45, false, 'rounded');
         }
       }
     } catch (e) {
@@ -118,7 +119,7 @@ export class CharacterProcessor {
     canvas.width = targetW;
     canvas.height = targetH;
 
-    // [핵심 1: 인물 사진 모드] 얼굴이나 옷이 파이지 않도록 안전 보존!
+    // [인물 사진 모드] 얼굴이나 옷이 파이지 않도록 안전 보존
     if (isPhoto || threshold <= 0) {
       if (shapeMode === 'oval') {
         ctx.save();
@@ -133,177 +134,273 @@ export class CharacterProcessor {
       return canvas;
     }
 
-    // [핵심 2: 손그림 모드] 도화지/스케치북 배경 제거 (지능형 누끼 따기)
+    // [손그림 모드] 스마트 도화지 & 책상 배경 완벽 누끼 제거
     ctx.drawImage(sourceImg, 0, 0, targetW, targetH);
     const imgData = ctx.getImageData(0, 0, targetW, targetH);
     const data = imgData.data;
     const totalPixels = targetW * targetH;
 
-    // 1단계: 외곽 테두리 둘레에서 배경 도화지 색상과 밝기 샘플링 (실내 조명/그림자 적응)
-    let borderCount = 0;
-    let sumR = 0, sumG = 0, sumB = 0;
-    const insetX = Math.max(1, Math.floor(targetW * 0.02));
-    const insetY = Math.max(1, Math.floor(targetH * 0.02));
+    // 1단계: 전체 이미지에서 지능형 도화지(Paper) 색상 및 조명 밝기 통계 추출
+    // - 사진 프레임 모서리에 책상/바닥/그림자가 찍혀도 영향받지 않도록 화면 전체 격자 샘플링
+    const sampleStep = Math.max(2, Math.floor(Math.min(targetW, targetH) / 120));
+    const paperLumSamples = [];
 
-    const sampleBorderPixel = (x, y) => {
-      const idx = (y * targetW + x) * 4;
-      sumR += data[idx];
-      sumG += data[idx + 1];
-      sumB += data[idx + 2];
-      borderCount++;
-    };
+    for (let y = sampleStep; y < targetH - sampleStep; y += sampleStep) {
+      const rowOffset = y * targetW;
+      for (let x = sampleStep; x < targetW - sampleStep; x += sampleStep) {
+        const idx = (rowOffset + x) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        const lum = r * 0.299 + g * 0.587 + b * 0.114;
+        const sat = Math.max(r, g, b) - Math.min(r, g, b);
 
-    for (let x = insetX; x < targetW - insetX; x += 3) {
-      sampleBorderPixel(x, insetY);
-      sampleBorderPixel(x, targetH - 1 - insetY);
+        // 도화지 후보: 무채색에 가깝고(sat < 28), 최소한의 밝기(lum > 130)를 가진 영역
+        if (sat < 28 && lum > 130) {
+          paperLumSamples.push(lum);
+        }
+      }
     }
-    for (let y = insetY; y < targetH - insetY; y += 3) {
-      sampleBorderPixel(insetX, y);
-      sampleBorderPixel(targetW - 1 - insetX, y);
+
+    // 도화지 밝기 결정 (상위 80 백분위수 활용: 어두운 그림자/책상 배제, 순수 도화지 기준)
+    let paperLum = 238;
+    if (paperLumSamples.length > 30) {
+      paperLumSamples.sort((a, b) => a - b);
+      const pIdx = Math.floor(paperLumSamples.length * 0.80);
+      paperLum = paperLumSamples[pIdx];
     }
 
-    const bgR = borderCount > 0 ? sumR / borderCount : 200;
-    const bgG = borderCount > 0 ? sumG / borderCount : 200;
-    const bgB = borderCount > 0 ? sumB / borderCount : 200;
-    const bgLum = bgR * 0.299 + bgG * 0.587 + bgB * 0.114;
-    const bgSat = Math.max(Math.abs(bgR - bgG), Math.abs(bgG - bgB), Math.abs(bgB - bgR));
-
-    // 감도(threshold: 5 ~ 95)에 따른 파라미터 계산
+    // 2단계: 감도(threshold: 5 ~ 95, 기본 약 45~50)에 따른 선화 및 채색 판정 기준
     const normThresh = Math.max(5, Math.min(95, threshold));
-    // 선(획) 콘트라스트 기준값: 종이보다 이 이상 어두우면 선으로 판별하여 투명화 중단
-    const strokeContrast = Math.max(8, 70 - (normThresh * 0.65));
-    // 도화지 색상 허용 거리
-    const colorDistLimit = 35 + (normThresh * 1.5);
-    // 인접 픽셀간의 그라디언트 허용차 (조명 그림자를 부드럽게 추적)
-    const stepDiffLimit = 35 + (normThresh * 0.4);
+    // 선 콘트라스트: 도화지보다 이만큼 어두우면 연필/펜/외곽선으로 판별
+    const strokeContrast = Math.max(12, 60 - (normThresh * 0.65));
+    // 유채색 채도 기준: 크레파스/색연필/사인펜
+    const satLimit = Math.max(14, 30 - (normThresh * 0.18));
 
-    // 픽셀이 도화지 배경인지 판별
-    // true: 도화지 (지울 영역), false: 그림 선/채색 (보호할 영역)
-    const isPaperPixel = (r, g, b) => {
-      const lum = r * 0.299 + g * 0.587 + b * 0.114;
-      const lumDiff = bgLum - lum; // 종이보다 얼마나 어두운가?
-      const sat = Math.max(Math.abs(r - g), Math.abs(g - b), Math.abs(b - r));
+    // 마스크 배열 (1: 그림/선/채색, 0: 도화지 또는 책상 배경)
+    const isStroke = new Uint8Array(totalPixels);
 
-      // 1. 선화 판정: 종이보다 유의미하게 어두우면 펜/연필 선임 -> 보호!
-      if (lumDiff > strokeContrast) {
-        return false;
+    // 3단계: 픽셀별 선화 및 채색 감지
+    // 외곽 테두리 3% 여백 (책상 자투리, 스케치북 스프링 구멍 등 노이즈 제거 마진)
+    const marginX = Math.max(4, Math.floor(targetW * 0.03));
+    const marginY = Math.max(4, Math.floor(targetH * 0.03));
+
+    for (let y = marginY; y < targetH - marginY; y++) {
+      const rowOffset = y * targetW;
+      for (let x = marginX; x < targetW - marginX; x++) {
+        const p = (rowOffset + x) * 4;
+        const r = data[p];
+        const g = data[p + 1];
+        const b = data[p + 2];
+        const lum = r * 0.299 + g * 0.587 + b * 0.114;
+        const sat = Math.max(r, g, b) - Math.min(r, g, b);
+
+        // A. 어두운 선화 (연필, 볼펜, 사인펜, 크레파스 외곽선)
+        const isDark = (paperLum - lum) > strokeContrast;
+        // B. 유채색 채색 (크레파스, 색연필, 형광펜, 사인펜 채색)
+        const isColor = sat > satLimit;
+        // C. 초록/파랑/살구색 등 특정 유채색 색조 보호 (채도가 낮아도 색조가 뚜렷한 경우)
+        const isGreenCrayon = (g > r + 8 && g > b + 8);
+        const isBlueCrayon = (b > r + 12);
+        const isSkin = (r > b + 16 && r > 130 && sat > 10);
+
+        if (isDark || isColor || isGreenCrayon || isBlueCrayon || isSkin) {
+          isStroke[rowOffset + x] = 1;
+        }
       }
-
-      // 2. 채색 판정: 채도가 도화지보다 뚜렷하게 높은 유채색(크레파스/색연필) -> 보호!
-      if (sat - bgSat > 20) {
-        return false;
-      }
-
-      // 3. 도화지 평균 색상과의 거리
-      const dR = r - bgR;
-      const dG = g - bgG;
-      const dB = b - bgB;
-      const dist = Math.sqrt(dR * dR + dG * dG + dB * dB);
-
-      return dist < colorDistLimit;
-    };
-
-    // 2단계: 외곽 테두리로부터 Flood-Fill (BFS) 시작
-    // 외곽에 연결된 도화지만 지우므로, 캐릭터 내부는 보존됨!
-    const visited = new Uint8Array(totalPixels);
-    const queue = new Int32Array(totalPixels);
-    let head = 0;
-    let tail = 0;
-
-    const trySeed = (x, y) => {
-      const idx = y * targetW + x;
-      if (visited[idx]) return;
-      const p = idx * 4;
-      if (isPaperPixel(data[p], data[p + 1], data[p + 2])) {
-        visited[idx] = 1;
-        queue[tail++] = idx;
-      }
-    };
-
-    for (let x = 0; x < targetW; x++) {
-      trySeed(x, 0);
-      trySeed(x, targetH - 1);
     }
+
+    // 4단계: 외곽 테두리에 걸친 책상선(바닥 테이블 라인) 및 상단 스프링선 제거
+    const visitedDesk = new Uint8Array(totalPixels);
+    const deskQueue = new Int32Array(totalPixels);
     for (let y = 0; y < targetH; y++) {
-      trySeed(0, y);
-      trySeed(targetW - 1, y);
-    }
+      for (const x of [marginX, targetW - 1 - marginX]) {
+        const idx = y * targetW + x;
+        if (isStroke[idx] && !visitedDesk[idx]) {
+          let dHead = 0, dTail = 0;
+          visitedDesk[idx] = 1;
+          deskQueue[dTail++] = idx;
+          let minX = x, maxX = x, minY = y, maxY = y;
+          const compIndices = [];
 
-    while (head < tail) {
-      const curr = queue[head++];
-      const cx = curr % targetW;
-      const cy = Math.floor(curr / targetW);
-      const curP = curr * 4;
-      const curR = data[curP];
-      const curG = data[curP + 1];
-      const curB = data[curP + 2];
+          while (dHead < dTail) {
+            const cur = deskQueue[dHead++];
+            compIndices.push(cur);
+            const cx = cur % targetW;
+            const cy = Math.floor(cur / targetW);
+            if (cx < minX) minX = cx;
+            if (cx > maxX) maxX = cx;
+            if (cy < minY) minY = cy;
+            if (cy > maxY) maxY = cy;
 
-      data[curP + 3] = 0; // 외곽 도화지 투명화!
+            const nbs = [
+              cx > marginX ? cur - 1 : -1,
+              cx < targetW - 1 - marginX ? cur + 1 : -1,
+              cy > marginY ? cur - targetW : -1,
+              cy < targetH - 1 - marginY ? cur + targetW : -1
+            ];
+            for (const n of nbs) {
+              if (n !== -1 && isStroke[n] && !visitedDesk[n]) {
+                visitedDesk[n] = 1;
+                deskQueue[dTail++] = n;
+              }
+            }
+          }
 
-      const neighbors = [
-        cx > 0 ? curr - 1 : -1,
-        cx < targetW - 1 ? curr + 1 : -1,
-        cy > 0 ? curr - targetW : -1,
-        cy < targetH - 1 ? curr + targetW : -1
-      ];
-
-      for (const n of neighbors) {
-        if (n !== -1 && !visited[n]) {
-          const np = n * 4;
-          const nr = data[np];
-          const ng = data[np + 1];
-          const nb = data[np + 2];
-
-          // 이웃 픽셀이 선/채색이 아니고 도화지 범위이며, 인접 픽셀과 색상 차이가 부드러운 경우 계속 전파
-          if (isPaperPixel(nr, ng, nb)) {
-            const stepDiff = Math.hypot(nr - curR, ng - curG, nb - curB);
-            if (stepDiff < stepDiffLimit) {
-              visited[n] = 1;
-              queue[tail++] = n;
+          const compW = maxX - minX + 1;
+          const compH = maxY - minY + 1;
+          // 상단/하단 경계에 닿아있으면서 가로로 길게 뻗은 테이블/스프링 선이면 제거
+          if (compW > targetW * 0.40 && compH < 35) {
+            for (const cIdx of compIndices) {
+              isStroke[cIdx] = 0;
             }
           }
         }
       }
     }
 
-    // 3단계: 캐릭터 내부 처리 (스티커 모드: 내부 도화지를 깨끗한 흰색으로 정돈)
+    // 5단계: 크레파스 질감 틈새 메우기 (Morphological Closing)
+    // 5x5 모폴로지 닫기(팽창 후 침식)로 크레파스 틈을 촘촘히 메워 단단한 캐릭터 덩어리로 만듭니다.
+    const closed = new Uint8Array(totalPixels);
+    const tempDilate = new Uint8Array(totalPixels);
+    const radius = 2; // 5x5 반경
+
+    // 팽창(Dilation)
+    for (let y = radius; y < targetH - radius; y++) {
+      const row = y * targetW;
+      for (let x = radius; x < targetW - radius; x++) {
+        if (isStroke[row + x]) {
+          for (let dy = -radius; dy <= radius; dy++) {
+            const nyRow = (y + dy) * targetW;
+            for (let dx = -radius; dx <= radius; dx++) {
+              tempDilate[nyRow + (x + dx)] = 1;
+            }
+          }
+        }
+      }
+    }
+
+    // 침식(Erosion)
+    for (let y = radius; y < targetH - radius; y++) {
+      const row = y * targetW;
+      for (let x = radius; x < targetW - radius; x++) {
+        let allOn = true;
+        for (let dy = -radius; dy <= radius; dy++) {
+          const nyRow = (y + dy) * targetW;
+          for (let dx = -radius; dx <= radius; dx++) {
+            if (!tempDilate[nyRow + (x + dx)]) {
+              allOn = false;
+              break;
+            }
+          }
+          if (!allOn) break;
+        }
+        if (allOn) {
+          closed[row + x] = 1;
+        }
+      }
+    }
+
+    // 6단계: 외부 도화지 배경과 캐릭터 내부(얼굴, 몸통, 옷) 분리 (외부 Flood-Fill)
+    const extBg = new Uint8Array(totalPixels);
+    const queue = new Int32Array(totalPixels);
+    let head = 0, tail = 0;
+
+    const seedExt = (x, y) => {
+      const idx = y * targetW + x;
+      if (!extBg[idx] && !closed[idx]) {
+        extBg[idx] = 1;
+        queue[tail++] = idx;
+      }
+    };
+
+    for (let x = 0; x < targetW; x++) {
+      seedExt(x, 0);
+      seedExt(x, targetH - 1);
+    }
+    for (let y = 0; y < targetH; y++) {
+      seedExt(0, y);
+      seedExt(targetW - 1, y);
+    }
+
+    while (head < tail) {
+      const curr = queue[head++];
+      const cx = curr % targetW;
+      const cy = Math.floor(curr / targetW);
+
+      const nbs = [
+        cx > 0 ? curr - 1 : -1,
+        cx < targetW - 1 ? curr + 1 : -1,
+        cy > 0 ? curr - targetW : -1,
+        cy < targetH - 1 ? curr + targetW : -1
+      ];
+
+      for (const n of nbs) {
+        if (n !== -1 && !extBg[n] && !closed[n]) {
+          extBg[n] = 1;
+          queue[tail++] = n;
+        }
+      }
+    }
+
+    // 7단계: 픽셀 합성 및 스티커 내부 정돈
+    // extBg === 1: 외부 도화지/책상 -> alpha = 0 (투명)
+    // extBg === 0: 캐릭터 내부 (선화, 크레파스 채색, 얼굴/몸통) -> alpha = 255 (보존)
     for (let i = 0; i < totalPixels; i++) {
-      if (!visited[i]) {
-        // 방문되지 않은 픽셀은 캐릭터 영역 (선 또는 캐릭터 몸통 내부)
-        const p = i * 4;
+      const p = i * 4;
+      if (extBg[i] === 1) {
+        data[p + 3] = 0; // 바깥 도화지는 깨끗하게 100% 투명화!
+      } else {
+        data[p + 3] = 255;
         const r = data[p];
         const g = data[p + 1];
         const b = data[p + 2];
         const lum = r * 0.299 + g * 0.587 + b * 0.114;
-        const lumDiff = bgLum - lum;
-        const sat = Math.max(Math.abs(r - g), Math.abs(g - b), Math.abs(b - r));
+        const sat = Math.max(r, g, b) - Math.min(r, g, b);
 
-        const isStroke = (lumDiff > strokeContrast) || (sat - bgSat > 20);
+        const isDrawingPixel = isStroke[i] === 1;
 
-        if (!isStroke) {
-          // 캐릭터 내부의 도화지 영역
+        if (!isDrawingPixel) {
+          // 캐릭터 내부지만 색칠하지 않은 빈 도화지(예: 칠하지 않은 얼굴, 흰 옷, 눈동자 흰자위)
           if (fillBodyWhite) {
-            // 스티커 모드: 캐릭터 내부를 뽀송뽀송하고 깨끗한 화이트로 채움
             data[p] = 255;
             data[p + 1] = 255;
             data[p + 2] = 255;
-            data[p + 3] = 255;
-          } else {
-            // 투명 선화 모드: 내부도 투명하게 비우고 선만 남김
-            data[p + 3] = 0;
           }
-        } else if (smartEnhance && lumDiff > strokeContrast && sat < 30) {
-          // 어두운 펜 선은 더 또렷하고 깊이감 있게 보정 (연필/볼펜/싸인펜 선명화)
-          data[p] = Math.max(0, Math.floor(r * 0.5));
-          data[p + 1] = Math.max(0, Math.floor(g * 0.5));
-          data[p + 2] = Math.max(0, Math.floor(b * 0.5));
+        } else if (smartEnhance && sat < 25 && lum < 120) {
+          // 검정/어두운 펜 외곽선은 더욱 또렷하고 선명하게 보정
+          data[p] = Math.max(0, Math.floor(r * 0.6));
+          data[p + 1] = Math.max(0, Math.floor(g * 0.6));
+          data[p + 2] = Math.max(0, Math.floor(b * 0.6));
+        }
+      }
+    }
+
+    // 8단계: 외곽선 안티앨리어싱 (경계면 부드럽게 스무딩)
+    for (let y = 1; y < targetH - 1; y++) {
+      const row = y * targetW;
+      for (let x = 1; x < targetW - 1; x++) {
+        const i = row + x;
+        const p = i * 4;
+        if (data[p + 3] > 0) {
+          const tNeighbors = (
+            (data[((y - 1) * targetW + x) * 4 + 3] === 0 ? 1 : 0) +
+            (data[((y + 1) * targetW + x) * 4 + 3] === 0 ? 1 : 0) +
+            (data[(row + x - 1) * 4 + 3] === 0 ? 1 : 0) +
+            (data[(row + x + 1) * 4 + 3] === 0 ? 1 : 0)
+          );
+          if (tNeighbors >= 2) {
+            data[p + 3] = 160;
+          } else if (tNeighbors === 1) {
+            data[p + 3] = 210;
+          }
         }
       }
     }
 
     ctx.putImageData(imgData, 0, 0);
 
-    // 4단계: 캐릭터 영역으로 자동 크롭
+    // 9단계: 캐릭터 영역으로 자동 크롭
     return CharacterProcessor.autoCrop(canvas);
   }
 
