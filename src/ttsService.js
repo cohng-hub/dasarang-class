@@ -1,4 +1,4 @@
-// Qwen3-TTS AI 목소리 복제 & 브라우저 귀여운 어린이 음성 구연 통합 서비스
+// Qwen3-TTS AI 목소리 복제 & 6세 귀여운 어린이 신경망 음성 구연 통합 서비스
 export class TtsService {
   constructor() {
     const isRemote = (typeof window !== 'undefined' && window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1');
@@ -12,15 +12,30 @@ export class TtsService {
     this.serverUrl = storedHost;
     this.refText = (safeGetStorage('qwen_tts_ref_text', '어느 화창한 아침, 밝은미소 해솔반 김나연이 길을 나섰어요. 살랑살랑 부는 바람을 맞으며 무지개 피어난 초록 숲속으로 씩씩하게 걸어갔답니다.')).trim();
     this.hasVoice = safeGetStorage('qwen_tts_has_voice', 'false') === 'true';
-    this.ttsMode = 'child'; // 기본값: 'child' (누르면 바로 읽어주는 귀여운 어린이 목소리, 대기시간 0초)
+    this.ttsMode = 'child'; // 기본 모드: 6세 어린아이 목소리로 모든 기기 통일
     this.currentAudio = null;
     this.speechSynth = typeof window !== 'undefined' ? window.speechSynthesis : null;
     this.currentUtterance = null;
     this.isPlaying = false;
     this.cachedAudioUrls = new Map(); // pageIndex -> ObjectURL
     this.preSynthesizing = false;
-    this.onStateChange = null; // (state: 'idle'|'loading'|'playing', mode: 'child'|'qwen'|'browser') => void
+    this.onStateChange = null; // (state: 'idle'|'loading'|'playing', mode: 'child') => void
     this.selectedVoice = null;
+    this.isAudioUnlocked = false;
+
+    // 모바일(iOS Safari, Android) 오디오 재생 잠금 해제 리스너
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      const unlock = () => {
+        if (this.isAudioUnlocked) return;
+        this.isAudioUnlocked = true;
+        try {
+          const dummy = new Audio('data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA');
+          dummy.play().catch(() => {});
+        } catch (e) {}
+      };
+      document.addEventListener('touchstart', unlock, { once: true, passive: true });
+      document.addEventListener('click', unlock, { once: true, passive: true });
+    }
 
     if (this.speechSynth) {
       this.initVoices();
@@ -31,7 +46,7 @@ export class TtsService {
   }
 
   /**
-   * 브라우저에 등록된 최적의 한국어 음성 탐색 (맑고 또랑또랑한 음색 우선)
+   * 브라우저에 등록된 최적의 한국어 음성 탐색 (비상 로컬 폴백용)
    */
   initVoices() {
     if (!this.speechSynth) return;
@@ -86,12 +101,25 @@ export class TtsService {
   }
 
   /**
-   * 전체 책 5장면에 대해 백그라운드 선행 음성 합성 (클릭 시 0초 즉시 재생)
+   * 엔드포인트 후보군 생성 (상대 경로 우선 - 모바일/터널/로컬 100% 호환)
+   */
+  getApiEndpoints(path = '/api/child-tts') {
+    const endpoints = [path];
+    if (this.serverUrl && typeof this.serverUrl === 'string' && this.serverUrl.trim() !== '') {
+      const clean = this.serverUrl.trim().replace(/\/+$/, '');
+      endpoints.unshift(`${clean}${path}`);
+    }
+    endpoints.push(`http://127.0.0.1:8000${path}`);
+    return [...new Set(endpoints)];
+  }
+
+  /**
+   * 전체 책 6장면(표지+5장)에 대해 백그라운드 선행 음성 합성 (클릭 시 0초 즉시 재생)
    */
   async preSynthesizeBook(renderedPages, storyData) {
-    if (!this.serverUrl || this.preSynthesizing) return;
+    if (this.preSynthesizing || !renderedPages || !storyData) return;
     this.preSynthesizing = true;
-    console.log('⚡ 그림책 낭독 음성 백그라운드 사전 합성 시작...');
+    console.log('⚡ 6세 어린이 목소리 음성 백그라운드 사전 합성 시작...');
 
     const tasks = renderedPages.map(async (page, i) => {
       if (this.cachedAudioUrls.has(i)) return;
@@ -101,15 +129,13 @@ export class TtsService {
       if (!text || !text.trim()) return;
 
       try {
-        const audioUrl = this.ttsMode === 'child'
-          ? await this.synthesizeChildVoice(text)
-          : await this.synthesizeVoiceClone(text);
+        const audioUrl = await this.synthesizeChildVoice(text);
         if (audioUrl) {
           this.cachedAudioUrls.set(i, audioUrl);
-          console.log(`✅ [${i}장] 어린이 목소리 음성 준비 완료`);
+          console.log(`✅ [${i}장] 6세 어린이 목소리 MP3 캐싱 완료`);
         }
       } catch (err) {
-        console.warn(`[${i}장] 사전 합성 건너뜀 (클릭 시 자동 합성):`, err);
+        console.warn(`[${i}장] 사전 합성 건너뜀 (클릭 시 실시간 합성):`, err);
       }
     });
 
@@ -118,10 +144,10 @@ export class TtsService {
   }
 
   /**
-   * 맑고 사랑스러운 신경망 어린이 목소리 생성 (Edge-TTS 0.4초 초고속)
+   * 맑고 사랑스러운 6세 어린이 신경망 목소리 생성 (Edge-TTS SunHi Neural +38Hz)
+   * - 모든 기기(아이폰, 갤럭시, 노트북 등)에서 완벽히 동일한 6세 어린이 음성 제공
    */
   async synthesizeChildVoice(text) {
-    if (!this.serverUrl) return null;
     const clean = (text || '')
       .replace(/["'“”‘’]/g, '')
       .replace(/\n+/g, ', ')
@@ -129,42 +155,59 @@ export class TtsService {
       .trim();
     if (!clean) return null;
 
-    const res = await fetch(`${this.serverUrl}/api/child-tts`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: clean,
-        language: 'Korean'
-      })
-    });
+    const endpoints = this.getApiEndpoints('/api/child-tts');
 
-    if (!res.ok) {
-      const errDetail = await res.text();
-      throw new Error(`어린이 TTS 생성 실패 (${res.status}): ${errDetail}`);
+    for (const ep of endpoints) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 6000);
+        const res = await fetch(ep, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: clean,
+            language: 'Korean'
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const blob = await res.blob();
+          return URL.createObjectURL(blob);
+        }
+      } catch (e) {
+        // 다음 엔드포인트 시도
+      }
     }
-
-    const blob = await res.blob();
-    return URL.createObjectURL(blob);
+    return null;
   }
 
   async synthesizeVoiceClone(text) {
-    const res = await fetch(`${this.serverUrl}/api/voice-clone`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        text: text.trim(),
-        language: 'Korean',
-        ref_text: this.refText
-      })
-    });
+    const endpoints = this.getApiEndpoints('/api/voice-clone');
+    for (const ep of endpoints) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const res = await fetch(ep, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            text: text.trim(),
+            language: 'Korean',
+            ref_text: this.refText
+          }),
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
 
-    if (!res.ok) {
-      const errDetail = await res.text();
-      throw new Error(`Qwen3-TTS 생성 실패 (${res.status}): ${errDetail}`);
+        if (res.ok) {
+          const blob = await res.blob();
+          return URL.createObjectURL(blob);
+        }
+      } catch (e) {}
     }
-
-    const blob = await res.blob();
-    return URL.createObjectURL(blob);
+    return null;
   }
 
   /**
@@ -172,98 +215,57 @@ export class TtsService {
    */
   async testServer(targetUrl = this.serverUrl) {
     const cleanUrl = (targetUrl || '').trim().replace(/\/+$/, '');
-    if (!cleanUrl) {
-      return { success: false, message: '서버 URL을 입력해 주세요.' };
-    }
+    const endpoints = cleanUrl ? [`${cleanUrl}/api/health`] : this.getApiEndpoints('/api/health');
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    for (const ep of endpoints) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 4000);
+        const res = await fetch(ep, {
+          signal: controller.signal,
+          headers: { 'Accept': 'application/json' }
+        });
+        clearTimeout(timeoutId);
 
-    try {
-      const res = await fetch(`${cleanUrl}/api/health`, {
-        signal: controller.signal,
-        headers: { 'Accept': 'application/json' }
-      });
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-
-      const data = await res.json();
-      if (data.has_voice) {
-        this.hasVoice = true;
-        localStorage.setItem('qwen_tts_has_voice', 'true');
-      }
-      return {
-        success: true,
-        data,
-        message: `✅ Qwen3-TTS 서버 연결 성공! (GPU: ${data.device || 'cuda'}, 목소리 등록: ${data.has_voice ? '완료' : '필요'})`
-      };
-    } catch (err) {
-      clearTimeout(timeoutId);
-      return {
-        success: false,
-        message: `❌ 연결 실패: ${err.message || '네트워크 오류 또는 주소를 확인해주세요'}`
-      };
-    }
-  }
-
-  /**
-   * 서버 상태 및 목소리 등록 여부 자동 동기화
-   */
-  async checkHealth() {
-    if (!this.serverUrl) return null;
-    try {
-      const res = await fetch(`${this.serverUrl}/api/health`);
-      if (res.ok) {
-        const data = await res.json();
-        if (data.has_voice) {
-          this.hasVoice = true;
-          localStorage.setItem('qwen_tts_has_voice', 'true');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.has_voice) {
+            this.hasVoice = true;
+            localStorage.setItem('qwen_tts_has_voice', 'true');
+          }
+          return { success: true, data };
         }
-        return data;
-      }
-    } catch (e) {
-      // 서버 오프라인
+      } catch (e) {}
     }
-    return null;
+
+    return { success: false, message: '서버에 연결할 수 없습니다.' };
   }
 
-  /**
-   * 부모님 녹음 목소리 파일 서버에 등록
-   * @param {Blob|File} audioBlob - 녹음된 오디오 파일
-   * @param {string} refText - 녹음 시 발음한 대본
-   */
-  async registerVoice(audioBlob, refText = this.refText) {
-    if (!this.serverUrl) {
-      throw new Error('Qwen3-TTS 서버 주소를 먼저 설정해 주세요.');
-    }
-
+  async registerVoice(audioBlob, refText) {
+    const endpoints = this.getApiEndpoints('/api/register-voice');
     const formData = new FormData();
     formData.append('audio_file', audioBlob, 'parent_voice.wav');
     formData.append('ref_text', refText.trim());
 
-    const res = await fetch(`${this.serverUrl}/api/register-voice`, {
-      method: 'POST',
-      body: formData
-    });
-
-    if (!res.ok) {
-      const errText = await res.text();
-      throw new Error(`목소리 등록 실패 (${res.status}): ${errText}`);
+    for (const ep of endpoints) {
+      try {
+        const res = await fetch(ep, {
+          method: 'POST',
+          body: formData
+        });
+        if (res.ok) {
+          this.hasVoice = true;
+          localStorage.setItem('qwen_tts_has_voice', 'true');
+          this.setRefText(refText);
+          this.clearAudioCache();
+          return await res.json();
+        }
+      } catch (e) {}
     }
 
-    this.hasVoice = true;
-    localStorage.setItem('qwen_tts_has_voice', 'true');
-    this.setRefText(refText);
-    this.clearAudioCache();
-    return await res.json();
+    throw new Error('목소리 등록에 실패했습니다. 서버 상태를 확인해 주세요.');
   }
 
-  /**
-   * 현재 등록된 목소리 삭제 및 기본 음성 모드로 복원
-   */
   clearVoice() {
     this.hasVoice = false;
     localStorage.removeItem('qwen_tts_has_voice');
@@ -271,65 +273,66 @@ export class TtsService {
   }
 
   /**
-   * 동화 텍스트 소리내어 읽어주기
-   * - 기본 모드: 어린아이 목소리로 0초 즉시 읽기 (대기시간 및 합성 지연 없음)
-   * - 사용자 선택 시: Qwen3-TTS AI 부모님 목소리 복제 구연
+   * 동화 텍스트 소리내어 읽어주기 (모든 기기 6세 어린아이 목소리로 100% 통일)
    */
   async speak(text, pageIndex = -1) {
     this.stop();
 
     if (!text || text.trim().length === 0) return;
 
-    // 1. 고품질 신경망 어린이 음성 또는 목소리 복제 오디오 재생 (서버 연결 시)
-    if (this.serverUrl) {
-      if (this.onStateChange) this.onStateChange('loading', this.ttsMode);
+    if (this.onStateChange) this.onStateChange('loading', this.ttsMode);
 
-      try {
-        let audioUrl = pageIndex >= 0 ? this.cachedAudioUrls.get(pageIndex) : null;
+    try {
+      let audioUrl = pageIndex >= 0 ? this.cachedAudioUrls.get(pageIndex) : null;
 
-        if (!audioUrl) {
-          audioUrl = this.ttsMode === 'child'
-            ? await this.synthesizeChildVoice(text)
-            : await this.synthesizeVoiceClone(text);
-          if (pageIndex >= 0 && audioUrl) {
-            this.cachedAudioUrls.set(pageIndex, audioUrl);
-          }
+      if (!audioUrl) {
+        audioUrl = this.ttsMode === 'child'
+          ? await this.synthesizeChildVoice(text)
+          : await this.synthesizeVoiceClone(text);
+        if (pageIndex >= 0 && audioUrl) {
+          this.cachedAudioUrls.set(pageIndex, audioUrl);
         }
-
-        if (audioUrl) {
-          const audio = new Audio(audioUrl);
-          this.currentAudio = audio;
-          this.isPlaying = true;
-
-          audio.onplay = () => {
-            if (this.onStateChange) this.onStateChange('playing', this.ttsMode);
-          };
-
-          audio.onended = () => {
-            this.isPlaying = false;
-            if (this.onStateChange) this.onStateChange('idle', this.ttsMode);
-          };
-
-          audio.onerror = (e) => {
-            console.warn('어린이 오디오 재생 오류, 브라우저 음성으로 전환합니다:', e);
-            this.isPlaying = false;
-            this.speakChildVoice(text);
-          };
-
-          await audio.play();
-          return;
-        }
-      } catch (err) {
-        console.warn('서버 어린이 음성 호출 실패, 브라우저 음성으로 대체합니다:', err);
       }
+
+      if (audioUrl) {
+        if (!this.currentAudio) {
+          this.currentAudio = new Audio();
+        }
+        this.currentAudio.src = audioUrl;
+        this.currentAudio.currentTime = 0;
+
+        this.currentAudio.onplay = () => {
+          this.isPlaying = true;
+          if (this.onStateChange) this.onStateChange('playing', this.ttsMode);
+        };
+
+        this.currentAudio.onended = () => {
+          this.isPlaying = false;
+          if (this.onStateChange) this.onStateChange('idle', this.ttsMode);
+        };
+
+        this.currentAudio.onerror = (e) => {
+          console.warn('어린이 오디오 재생 오류, 비상 브라우저 음성 대체:', e);
+          this.isPlaying = false;
+          this.speakChildVoice(text);
+        };
+
+        const playPromise = this.currentAudio.play();
+        if (playPromise !== undefined) {
+          await playPromise;
+        }
+        return;
+      }
+    } catch (err) {
+      console.warn('서버 어린이 음성 호출 오류, 비상 브라우저 음성 대체:', err);
     }
 
-    // 2. 서버 오프라인 시 브라우저 내장 음성 대체
+    // 서버 오프라인 비상 시 브라우저 내장 음성 대체
     this.speakChildVoice(text);
   }
 
   /**
-   * 0초 즉각 재생: 맑고 사랑스러운 6~7세 어린아이 목소리 동화 구연
+   * 오프라인 비상용 브라우저 음성 (어린이 음색 튜닝)
    */
   speakChildVoice(text) {
     if (!this.speechSynth) {
@@ -344,7 +347,6 @@ export class TtsService {
       }
     } catch (e) {}
 
-    // 동화 구연 텍스트 정제 (불필요한 따옴표 제거 및 자연스러운 숨고르기 쉼표 처리)
     const cleanText = (text || '')
       .replace(/["'“”‘’]/g, '')
       .replace(/\n+/g, ', ')
@@ -359,7 +361,6 @@ export class TtsService {
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'ko-KR';
 
-    // 최적의 한국어 음성 연결
     if (!this.selectedVoice) {
       this.initVoices();
     }
@@ -367,11 +368,8 @@ export class TtsService {
       utterance.voice = this.selectedVoice;
     }
 
-    // 🌟 귀여운 어린아이 목소리 음향 튜닝:
-    // pitch 1.38 : 청량하고 귀여운 어린이 톤
-    // rate 1.02 : 또랑또랑하고 활기찬 동화 구연 템포
-    utterance.pitch = 1.38;
-    utterance.rate = 1.02;
+    utterance.pitch = 1.45;
+    utterance.rate = 1.05;
     utterance.volume = 1.0;
 
     utterance.onstart = () => {
@@ -386,7 +384,7 @@ export class TtsService {
     };
 
     utterance.onerror = (e) => {
-      console.warn('어린이 목소리 재생 중단/오류:', e);
+      console.warn('브라우저 음성 재생 중단:', e);
       this.isPlaying = false;
       this.currentUtterance = null;
       if (this.onStateChange) this.onStateChange('idle', 'child');
@@ -410,8 +408,8 @@ export class TtsService {
         this.speechSynth.cancel();
       } catch (e) {}
     }
-
     this.isPlaying = false;
+    this.currentUtterance = null;
     if (this.onStateChange) this.onStateChange('idle', this.ttsMode);
   }
 }

@@ -6,6 +6,7 @@ Qwen3-TTS 로컬 FastAPI 서버
 """
 
 import io
+import json
 import os
 import sys
 import time
@@ -14,7 +15,7 @@ import soundfile as sf
 import torch
 from PIL import Image
 from rembg import remove, new_session
-from fastapi import FastAPI, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response, JSONResponse
 from pydantic import BaseModel
@@ -262,6 +263,93 @@ def voice_clone(req: VoiceCloneRequest):
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ========================================================
+# 해솔반 그림책 영구 보관소 서버 API (모든 기기 실시간 공유 및 동기화)
+# ========================================================
+BOOKS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "saved_books")
+os.makedirs(BOOKS_DIR, exist_ok=True)
+
+
+def _load_all_books():
+    books = []
+    if not os.path.exists(BOOKS_DIR):
+        return books
+    for fname in os.listdir(BOOKS_DIR):
+        if fname.endswith(".json"):
+            fpath = os.path.join(BOOKS_DIR, fname)
+            try:
+                with open(fpath, "r", encoding="utf-8") as f:
+                    book_data = json.load(f)
+                    if isinstance(book_data, dict) and book_data.get("id"):
+                        books.append(book_data)
+            except Exception as e:
+                print(f"⚠️ 책 파일 로드 실패 ({fname}):", e)
+    books.sort(key=lambda b: b.get("timestamp", 0), reverse=True)
+    return books
+
+
+@app.get("/api/books")
+def get_books(child_name: str = None):
+    books = _load_all_books()
+    if child_name and child_name.strip():
+        books = [b for b in books if b.get("childName") == child_name.strip()]
+    return books
+
+
+@app.get("/api/books/{book_id}")
+def get_single_book(book_id: str):
+    # 파일명 안전성 확보
+    safe_id = "".join(c for c in book_id if c.isalnum() or c in ("_", "-"))
+    fpath = os.path.join(BOOKS_DIR, f"{safe_id}.json")
+    if not os.path.exists(fpath):
+        raise HTTPException(status_code=404, detail="그림책을 찾을 수 없습니다.")
+    with open(fpath, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+@app.post("/api/books")
+async def save_book_endpoint(request: Request):
+    try:
+        data = await request.json()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"잘못된 JSON 형식: {str(e)}")
+
+    if not isinstance(data, dict):
+        raise HTTPException(status_code=400, detail="데이터는 JSON 객체여야 합니다.")
+
+    book_id = str(data.get("id", "")).strip()
+    if not book_id:
+        book_id = f"book_{int(time.time()*1000)}"
+        data["id"] = book_id
+
+    if not data.get("timestamp"):
+        data["timestamp"] = int(time.time() * 1000)
+
+    safe_id = "".join(c for c in book_id if c.isalnum() or c in ("_", "-"))
+    fpath = os.path.join(BOOKS_DIR, f"{safe_id}.json")
+    with open(fpath, "w", encoding="utf-8") as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+
+    title = data.get("title", "제목 없음")
+    child = data.get("childName", "우리 친구")
+    print(f"📚 [그림책 서버 저장 완료] '{title}' (작가: {child}, ID: {safe_id})")
+    return {"success": True, "book": data}
+
+
+@app.delete("/api/books/{book_id}")
+def delete_book_endpoint(book_id: str):
+    safe_id = "".join(c for c in book_id if c.isalnum() or c in ("_", "-"))
+    fpath = os.path.join(BOOKS_DIR, f"{safe_id}.json")
+    if os.path.exists(fpath):
+        try:
+            os.remove(fpath)
+            print(f"🗑️ [그림책 서버 삭제 완료] ID: {safe_id}")
+            return {"success": True}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=str(e))
+    return {"success": True, "message": "이미 존재하지 않는 파일입니다."}
 
 
 if __name__ == "__main__":

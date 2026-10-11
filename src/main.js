@@ -93,6 +93,24 @@ class PictureBookApp {
     this.setupTtsService();
     this.updateVoiceCloneBadge();
     this.updateLibraryTotalBadge();
+
+    // 공유 링크(?book=ID)로 접속한 경우 모든 기기에서 즉시 해당 그림책 열기
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sharedBookId = urlParams.get('book');
+      if (sharedBookId) {
+        let book = bookStorage.getBookById(sharedBookId);
+        if (!book) {
+          const res = await fetch(`/api/books/${sharedBookId}`).catch(() => null);
+          if (res && res.ok) book = await res.json();
+        }
+        if (book) {
+          await this.loadSavedBookIntoViewer(book);
+        }
+      }
+    } catch (e) {
+      console.warn('공유 그림책 로드 오류:', e);
+    }
   }
 
   updateAiEngineStatusUI() {
@@ -250,6 +268,7 @@ class PictureBookApp {
 
     // 스텝 6 보관함 저장 버튼 및 모달
     this.btnSaveToLibrary = document.getElementById('btn-save-to-library');
+    this.btnShareStoryLink = document.getElementById('btn-share-story-link');
     this.btnOpenLibraryModal = document.getElementById('btn-open-library-modal');
     this.libraryTotalBadge = document.getElementById('library-total-badge');
     this.libraryModal = document.getElementById('library-modal');
@@ -709,6 +728,28 @@ class PictureBookApp {
     if (this.btnSaveToLibrary) {
       this.btnSaveToLibrary.addEventListener('click', () => {
         this.saveCurrentBookToLibrary();
+      });
+    }
+
+    // 이야기 완성본 링크 공유하기
+    if (this.btnShareStoryLink) {
+      this.btnShareStoryLink.addEventListener('click', () => {
+        soundManager.playPop();
+        const bookId = this.currentSavedBookId;
+        if (!bookId) {
+          alert('먼저 그림책을 보관함에 저장해 주세요!');
+          return;
+        }
+        const shareUrl = `${window.location.origin}/?book=${bookId}`;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(shareUrl).then(() => {
+            alert(`'${this.book.storyData.title}' 그림책 링크가 복사되었습니다!\n스마트폰이나 다른 기기로 링크를 전송하시면 완성본을 바로 보실 수 있습니다.`);
+          }).catch(() => {
+            prompt('아래 링크를 복사하여 전송해 주세요:', shareUrl);
+          });
+        } else {
+          prompt('아래 링크를 복사하여 전송해 주세요:', shareUrl);
+        }
       });
     }
 
@@ -1179,6 +1220,12 @@ class PictureBookApp {
       this.currentSavedBookId = null;
     }
     this.currentStep = stepNumber;
+    if (stepNumber === 2) {
+      bookStorage.syncWithServer().then(() => {
+        this.updateLibraryTotalBadge();
+        this.renderChildrenGrid();
+      }).catch(() => {});
+    }
     if (stepNumber === 4) {
       this.updateWhoRecommendationChips();
       // 업로드된 등장인물(주인공이 아닌 사진)이 있고 질문2가 기본값이면 첫 번째 등장인물 이름으로 추천/입력
@@ -1315,6 +1362,13 @@ class PictureBookApp {
       // 뷰어 준비 및 이동 (6단계: 그림책 읽기)
       this.setupBookViewer();
       this.goToStep(6);
+
+      // 🌟 이야기 완성 즉시 서버 및 공통 보관함에 자동 저장 (어떤 기기 B, C에서 접속해도 바로 완성본이 보이도록 연동)
+      try {
+        await this.saveCurrentBookToLibrary(true);
+      } catch (autoSaveErr) {
+        console.warn('자동 보관함 저장 건너뜀:', autoSaveErr);
+      }
     } catch (err) {
       console.error('그림책 생성 중 오류:', err);
       this.updateLoadingProgress(100, '오류가 발생하여 중단되었습니다.');
@@ -1848,8 +1902,12 @@ class PictureBookApp {
     }
   }
 
-  openLibraryModal(filterChildName = null) {
+  async openLibraryModal(filterChildName = null) {
     soundManager.playPop();
+    if (this.libraryModal) {
+      this.libraryModal.classList.add('open');
+    }
+    this.updateLibraryTotalBadge();
     if (this.libraryModalTitle) {
       const count = filterChildName ? this.getSavedBooks(filterChildName).length : this.getSavedBooks().length;
       this.libraryModalTitle.textContent = filterChildName
@@ -1857,9 +1915,19 @@ class PictureBookApp {
         : `📚 해솔반 전체 그림책 보관함 (${count}권)`;
     }
     this.renderLibraryList(filterChildName);
-    if (this.libraryModal) {
-      this.libraryModal.classList.add('open');
-    }
+
+    // 다른 기기(스마트폰 B, 노트북 C)에서 저장된 최신 그림책 실시간 동기화
+    try {
+      await bookStorage.syncWithServer();
+      this.updateLibraryTotalBadge();
+      if (this.libraryModalTitle) {
+        const count = filterChildName ? this.getSavedBooks(filterChildName).length : this.getSavedBooks().length;
+        this.libraryModalTitle.textContent = filterChildName
+          ? `👦👧 해솔반 ${filterChildName} 어린이의 그림책 보관함 (${count}권)`
+          : `📚 해솔반 전체 그림책 보관함 (${count}권)`;
+      }
+      this.renderLibraryList(filterChildName);
+    } catch (e) {}
   }
 
   closeLibraryModal() {
@@ -1934,7 +2002,10 @@ class PictureBookApp {
         </div>
         <div class="library-book-actions">
           <button type="button" class="btn-library-open" data-id="${b.id}">
-            <span>📖</span> <span>열기 / 수정</span>
+            <span>📖</span> <span>열기 / 읽기</span>
+          </button>
+          <button type="button" class="btn-library-share" data-id="${b.id}" style="background: #EBF8FF; color: #2B6CB0; border: 1px solid #BEE3F8; border-radius: 6px; padding: 6px 10px; font-weight: 700; cursor: pointer;" title="모든 기기에서 바로 볼 수 있는 링크 복사">
+            <span>🔗</span> <span>링크 복사</span>
           </button>
           <button type="button" class="btn-library-delete" data-id="${b.id}">
             <span>🗑️ 삭제</span>
@@ -1945,6 +2016,23 @@ class PictureBookApp {
       item.querySelector('.btn-library-open').addEventListener('click', () => {
         this.loadSavedBookIntoViewer(b);
       });
+
+      const shareBtn = item.querySelector('.btn-library-share');
+      if (shareBtn) {
+        shareBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const shareUrl = `${window.location.origin}/?book=${b.id}`;
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(shareUrl).then(() => {
+              alert(`'${b.title}' 그림책 링크가 복사되었습니다!\n스마트폰이나 다른 기기로 링크를 전송하시면 완성본을 바로 보실 수 있습니다.`);
+            }).catch(() => {
+              prompt('아래 링크를 복사하여 전송해 주세요:', shareUrl);
+            });
+          } else {
+            prompt('아래 링크를 복사하여 전송해 주세요:', shareUrl);
+          }
+        });
+      }
 
       item.querySelector('.btn-library-delete').addEventListener('click', async () => {
         if (confirm(`'${b.title}' 그림책을 보관함에서 삭제하시겠습니까?`)) {
@@ -2024,13 +2112,13 @@ class PictureBookApp {
     }
   }
 
-  async saveCurrentBookToLibrary() {
+  async saveCurrentBookToLibrary(silent = false) {
     if (!this.book.storyData || this.book.renderedPages.length === 0) {
-      alert('먼저 그림책을 완성해 주세요!');
+      if (!silent) alert('먼저 그림책을 완성해 주세요!');
       return;
     }
 
-    soundManager.playMagic();
+    if (!silent) soundManager.playMagic();
     const bookId = this.currentSavedBookId || ('book_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6));
     this.currentSavedBookId = bookId;
 
@@ -2107,8 +2195,10 @@ class PictureBookApp {
           }
         }, 3000);
       }
-      this.fireCelebrationConfetti();
-      alert(`🎉 [${savedBook.title}] 그림책이 해솔반 ${creatorChild} 작가님의 보관함에 안전하게 저장되었습니다!\n\n기존 이야기와 함께 누적 보관되어 언제든 2단계 친구 선택 화면에서 다시 열어보거나 수정할 수 있습니다.`);
+      if (!silent) {
+        this.fireCelebrationConfetti();
+        alert(`🎉 [${savedBook.title}] 그림책이 모든 기기 공통 보관함에 안전하게 저장되었습니다!\n\n다른 스마트폰이나 노트북에서도 언제든 바로 열어보고 함께 감상하실 수 있습니다.`);
+      }
     }
   }
 
