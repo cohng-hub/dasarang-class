@@ -270,20 +270,45 @@ def voice_clone(req: VoiceCloneRequest):
 # ========================================================
 BOOKS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "saved_books")
 os.makedirs(BOOKS_DIR, exist_ok=True)
+DELETED_IDS_FILE = os.path.join(BOOKS_DIR, "_deleted_ids.json")
+
+
+def _load_deleted_ids() -> set:
+    if not os.path.exists(DELETED_IDS_FILE):
+        return set()
+    try:
+        with open(DELETED_IDS_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            if isinstance(data, list):
+                return set(data)
+    except Exception as e:
+        print("⚠️ _load_deleted_ids 에러:", e)
+    return set()
+
+
+def _save_deleted_ids(deleted_set: set):
+    try:
+        with open(DELETED_IDS_FILE, "w", encoding="utf-8") as f:
+            json.dump(sorted(list(deleted_set)), f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print("⚠️ _save_deleted_ids 에러:", e)
 
 
 def _load_all_books():
     books = []
     if not os.path.exists(BOOKS_DIR):
         return books
+    deleted_ids = _load_deleted_ids()
     for fname in os.listdir(BOOKS_DIR):
-        if fname.endswith(".json"):
+        if fname.endswith(".json") and not fname.startswith("_"):
             fpath = os.path.join(BOOKS_DIR, fname)
             try:
                 with open(fpath, "r", encoding="utf-8") as f:
                     book_data = json.load(f)
                     if isinstance(book_data, dict) and book_data.get("id"):
-                        books.append(book_data)
+                        b_id = str(book_data.get("id"))
+                        if b_id not in deleted_ids:
+                            books.append(book_data)
             except Exception as e:
                 print(f"⚠️ 책 파일 로드 실패 ({fname}):", e)
     books.sort(key=lambda b: b.get("timestamp", 0), reverse=True)
@@ -295,13 +320,21 @@ def get_books(child_name: str = None):
     books = _load_all_books()
     if child_name and child_name.strip():
         books = [b for b in books if b.get("childName") == child_name.strip()]
-    return books
+    deleted_ids = sorted(list(_load_deleted_ids()))
+    return {
+        "books": books,
+        "deleted_ids": deleted_ids,
+        "count": len(books)
+    }
 
 
 @app.get("/api/books/{book_id}")
 def get_single_book(book_id: str):
     # 파일명 안전성 확보
     safe_id = "".join(c for c in book_id if c.isalnum() or c in ("_", "-"))
+    deleted_ids = _load_deleted_ids()
+    if safe_id in deleted_ids or book_id in deleted_ids:
+        raise HTTPException(status_code=404, detail="삭제된 그림책입니다.")
     fpath = os.path.join(BOOKS_DIR, f"{safe_id}.json")
     if not os.path.exists(fpath):
         raise HTTPException(status_code=404, detail="그림책을 찾을 수 없습니다.")
@@ -328,6 +361,14 @@ async def save_book_endpoint(request: Request):
         data["timestamp"] = int(time.time() * 1000)
 
     safe_id = "".join(c for c in book_id if c.isalnum() or c in ("_", "-"))
+
+    # 만약 기존에 삭제 목록에 들어있던 ID라면 삭제 목록에서 제거 (재등록 허용)
+    deleted_ids = _load_deleted_ids()
+    if safe_id in deleted_ids or book_id in deleted_ids:
+        deleted_ids.discard(safe_id)
+        deleted_ids.discard(book_id)
+        _save_deleted_ids(deleted_ids)
+
     fpath = os.path.join(BOOKS_DIR, f"{safe_id}.json")
     with open(fpath, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
@@ -341,15 +382,26 @@ async def save_book_endpoint(request: Request):
 @app.delete("/api/books/{book_id}")
 def delete_book_endpoint(book_id: str):
     safe_id = "".join(c for c in book_id if c.isalnum() or c in ("_", "-"))
+    
+    # 1. 툼스톤(삭제 목록)에 등록하여 다른 기기에서 재업로드 방지
+    deleted_ids = _load_deleted_ids()
+    if safe_id:
+        deleted_ids.add(safe_id)
+    if book_id:
+        deleted_ids.add(book_id)
+    _save_deleted_ids(deleted_ids)
+
+    # 2. 서버 파일 삭제
     fpath = os.path.join(BOOKS_DIR, f"{safe_id}.json")
     if os.path.exists(fpath):
         try:
             os.remove(fpath)
-            print(f"🗑️ [그림책 서버 삭제 완료] ID: {safe_id}")
-            return {"success": True}
+            print(f"🗑️ [그림책 서버 삭제 및 툼스톤 등록 완료] ID: {safe_id}")
+            return {"success": True, "deleted_id": safe_id}
         except Exception as e:
             raise HTTPException(status_code=500, detail=str(e))
-    return {"success": True, "message": "이미 존재하지 않는 파일입니다."}
+    print(f"🗑️ [그림책 툼스톤 등록 완료 (파일 미존재)] ID: {safe_id}")
+    return {"success": True, "deleted_id": safe_id, "message": "삭제 목록에 등록되었습니다."}
 
 
 if __name__ == "__main__":

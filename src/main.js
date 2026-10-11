@@ -74,6 +74,7 @@ class PictureBookApp {
     this.uploadedPhotos = [];
     this.selectedPhotoIndex = 0;
     this.currentSavedBookId = null;
+    this.currentLibraryFilter = null;
   }
 
   async init() {
@@ -94,6 +95,9 @@ class PictureBookApp {
     this.updateVoiceCloneBadge();
     this.updateLibraryTotalBadge();
 
+    // 모든 기기간 실시간 그림책 동기화 및 삭제 공유 활성화
+    this.startMultiDeviceSync();
+
     // 공유 링크(?book=ID)로 접속한 경우 모든 기기에서 즉시 해당 그림책 열기
     try {
       const urlParams = new URLSearchParams(window.location.search);
@@ -111,6 +115,36 @@ class PictureBookApp {
     } catch (e) {
       console.warn('공유 그림책 로드 오류:', e);
     }
+  }
+
+  startMultiDeviceSync() {
+    const doSync = async () => {
+      try {
+        const hasChanges = await bookStorage.syncWithServer();
+        if (hasChanges) {
+          this.updateLibraryTotalBadge();
+          this.renderChildrenGrid();
+          if (this.libraryModal && this.libraryModal.classList.contains('open')) {
+            if (this.libraryModalTitle) {
+              const count = this.currentLibraryFilter ? this.getSavedBooks(this.currentLibraryFilter).length : this.getSavedBooks().length;
+              this.libraryModalTitle.textContent = this.currentLibraryFilter
+                ? `👦👧 해솔반 ${this.currentLibraryFilter} 어린이의 그림책 보관함 (${count}권)`
+                : `📚 해솔반 전체 그림책 보관함 (${count}권)`;
+            }
+            this.renderLibraryList(this.currentLibraryFilter);
+          }
+        }
+      } catch (e) {}
+    };
+
+    // 5초 간격으로 다른 기기(스마트폰, 노트북 등)의 생성/삭제 변경사항 자동 동기화
+    setInterval(doSync, 5000);
+
+    // 사용자가 창으로 돌아오거나 모바일 화면이 켜졌을 때 즉시 동기화
+    window.addEventListener('focus', doSync);
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') doSync();
+    });
   }
 
   updateAiEngineStatusUI() {
@@ -1904,6 +1938,7 @@ class PictureBookApp {
 
   async openLibraryModal(filterChildName = null) {
     soundManager.playPop();
+    this.currentLibraryFilter = filterChildName;
     if (this.libraryModal) {
       this.libraryModal.classList.add('open');
     }
@@ -1916,7 +1951,7 @@ class PictureBookApp {
     }
     this.renderLibraryList(filterChildName);
 
-    // 다른 기기(스마트폰 B, 노트북 C)에서 저장된 최신 그림책 실시간 동기화
+    // 다른 기기(스마트폰 B, 노트북 C)에서 저장/삭제된 최신 그림책 실시간 동기화
     try {
       await bookStorage.syncWithServer();
       this.updateLibraryTotalBadge();
