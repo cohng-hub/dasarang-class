@@ -55,11 +55,14 @@ export class TtsService {
       if (voices.length === 0) return;
 
       const koVoices = voices.filter(v => v.lang && (v.lang.startsWith('ko') || v.lang.includes('KR')));
+      // 6세 귀여운 어린이 음색 우선순위 (SunHi 신경망 > 구글 > Yuna > 기타)
+      // 혜미(Heami)는 윈도우 성인 여성 음색이므로 최하위 순위로 강등
       const best = koVoices.find(v => v.name.includes('SunHi') && v.name.includes('Natural'))
         || koVoices.find(v => v.name.includes('SunHi'))
-        || koVoices.find(v => v.name.includes('Heami'))
         || koVoices.find(v => v.name.includes('Google') || v.name.includes('한국'))
         || koVoices.find(v => v.name.includes('Yuna'))
+        || koVoices.find(v => !v.name.includes('Heami'))
+        || koVoices.find(v => v.name.includes('Heami'))
         || koVoices[0]
         || voices.find(v => v.lang && v.lang.startsWith('ko'));
 
@@ -382,8 +385,9 @@ export class TtsService {
       utterance.voice = this.selectedVoice;
     }
 
-    utterance.pitch = 1.45;
-    utterance.rate = 1.05;
+    const isAdultHeami = this.selectedVoice && this.selectedVoice.name.includes('Heami');
+    utterance.pitch = isAdultHeami ? 1.70 : 1.45;
+    utterance.rate = isAdultHeami ? 1.08 : 1.05;
     utterance.volume = 1.0;
 
     utterance.onstart = () => {

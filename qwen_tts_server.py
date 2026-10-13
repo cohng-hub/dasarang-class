@@ -27,6 +27,36 @@ if sys.platform == "win32":
     except Exception:
         pass
 
+# Edge-TTS 403 방지 패치 (최신 Microsoft Edge 엔드포인트 및 로케일 독립적 날짜 파싱 적용)
+try:
+    import edge_tts
+    import edge_tts.communicate
+    import edge_tts.constants
+    import edge_tts.drm
+    from email.utils import parsedate_to_datetime
+    from datetime import timezone as tz
+
+    _NEW_EDGE_WSS_URL = (
+        "wss://api.msedgeservices.com/tts/cognitiveservices/websocket/v1"
+        f"?Ocp-Apim-Subscription-Key={edge_tts.constants.TRUSTED_CLIENT_TOKEN}"
+    )
+    edge_tts.constants.WSS_URL = _NEW_EDGE_WSS_URL
+    edge_tts.communicate.WSS_URL = _NEW_EDGE_WSS_URL
+
+    def _safe_parse_rfc2616_date(date: str):
+        try:
+            parsed = parsedate_to_datetime(date)
+        except Exception:
+            return None
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=tz.utc)
+        return parsed.timestamp()
+
+    edge_tts.drm.DRM.parse_rfc2616_date = staticmethod(_safe_parse_rfc2616_date)
+    print("✅ Edge-TTS 6세 어린이 신경망 음성 패치 완료!")
+except Exception as _patch_err:
+    print("⚠️ Edge-TTS 패치 경고:", _patch_err)
+
 app = FastAPI(title="Qwen3-TTS Local Server")
 
 app.add_middleware(
@@ -191,17 +221,39 @@ async def child_tts(req: VoiceCloneRequest):
     text = req.text.strip()
     if not text:
         raise HTTPException(status_code=400, detail="텍스트가 비어 있습니다.")
-    import edge_tts
-    # 맑고 경쾌한 6~7세 어린이 동화 구연 목소리 (SunHi Neural, +38Hz, +8%)
+    
     clean_text = text.replace('"', '').replace("'", "").replace("\n", ", ")
     t0 = time.time()
-    communicate = edge_tts.Communicate(clean_text, "ko-KR-SunHiNeural", pitch="+38Hz", rate="+8%")
-    audio_bytes = bytearray()
-    async for chunk in communicate.stream():
-        if chunk["type"] == "audio":
-            audio_bytes.extend(chunk["data"])
-    print(f"👧 어린이 목소리 생성 완료 ({time.time() - t0:.2f}초, {len(audio_bytes)} 바이트)")
-    return Response(content=bytes(audio_bytes), media_type="audio/mpeg")
+
+    # 1. 고음질 6세 어린이 신경망 목소리 (Edge-TTS SunHi Neural, +38Hz, +8%)
+    try:
+        communicate = edge_tts.Communicate(clean_text, "ko-KR-SunHiNeural", pitch="+38Hz", rate="+8%")
+        audio_bytes = bytearray()
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                audio_bytes.extend(chunk["data"])
+        if len(audio_bytes) > 0:
+            print(f"👧 6세 어린이 신경망 목소리 생성 완료 ({time.time() - t0:.2f}초, {len(audio_bytes)} 바이트)")
+            return Response(content=bytes(audio_bytes), media_type="audio/mpeg")
+    except Exception as edge_err:
+        print("⚠️ Edge-TTS 생성 실패, 구글 어린이 음성 폴백 시도:", edge_err)
+
+    # 2. 비상 백업: Google TTS 어린이 음색 폴백
+    try:
+        import urllib.request
+        import urllib.parse
+        encoded = urllib.parse.quote(clean_text)
+        g_url = f"https://translate.google.com/translate_tts?ie=UTF-8&q={encoded}&tl=ko&client=tw-ob"
+        req_g = urllib.request.Request(g_url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req_g, timeout=5) as resp:
+            raw_mp3 = resp.read()
+            if len(raw_mp3) > 0:
+                print(f"👧 [구글 폴백] 6세 어린이 목소리 전달 완료 ({len(raw_mp3)} 바이트)")
+                return Response(content=raw_mp3, media_type="audio/mpeg")
+    except Exception as g_err:
+        print("⚠️ Google TTS 폴백도 실패:", g_err)
+
+    raise HTTPException(status_code=500, detail="어린이 음성 생성에 실패했습니다.")
 
 
 @app.post("/api/voice-clone")
