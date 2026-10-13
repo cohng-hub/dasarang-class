@@ -78,6 +78,20 @@ export class BookRenderer {
       }
     }
 
+    // 🌟 사용자가 업로드한 다른 사진/손그림이 있는데 파일명 불일치로 누락된 경우:
+    // AI 임의 캐릭터가 멋대로 그려지지 않도록, 업로드된 실제 사진/그림을 최우선으로 동반 등장시킵니다!
+    if (companionCanvases.length === 0 && candidatePhotos.length > 0) {
+      const hasCompanionSlot = !!pageInfo.companion || pageInfo.theme === 'race' || !!pageInfo.friendText || pageInfo.pageNumber === 2 || pageInfo.pageNumber === 4;
+      if (hasCompanionSlot) {
+        const fallbackIdx = (pageInfo.pageNumber ? pageInfo.pageNumber - 1 : 0) % candidatePhotos.length;
+        const fallbackPhoto = candidatePhotos[fallbackIdx] || candidatePhotos[0];
+        if (fallbackPhoto && fallbackPhoto.transparentCanvas) {
+          companionCanvases.push(fallbackPhoto.transparentCanvas);
+          matchedFriendNames.push(fallbackPhoto.name || '친구');
+        }
+      }
+    }
+
     return {
       protagonistCanvas,
       companionCanvases,
@@ -131,6 +145,7 @@ export class BookRenderer {
 
       const pageOptions = {
         ...options,
+        characterName: storyData.characterName || (options.uploadedPhotos && options.uploadedPhotos.find(p => p.isProtagonist)?.name) || options.characterName,
         companionCanvases: charMatch.companionCanvases,
         companionCanvas: charMatch.companionCanvas,
         matchedFriendNames: charMatch.matchedFriendNames,
@@ -425,7 +440,7 @@ export class BookRenderer {
       }
     } else {
       // 업로드된 친구 매칭이 없을 때만 기본 테마 동물/소품 렌더링
-      BookRenderer.renderCompanionCharacter(ctx, pageInfo, pNum, theme, w, h);
+      BookRenderer.renderCompanionCharacter(ctx, pageInfo, pNum, theme, w, h, options);
     }
 
     // 6. 하단 이야기 텍스트 카드 (단어 단위 자동 줄바꿈 & 폰트 크기 자동 조절)
@@ -460,54 +475,94 @@ export class BookRenderer {
   /**
    * 동반 캐릭터 렌더링 (이야기에 등장하는 동물/친구만 정확히 그리기)
    */
-  static renderCompanionCharacter(ctx, pageInfo, pNum, theme, w, h) {
+  static renderCompanionCharacter(ctx, pageInfo, pNum, theme, w, h, options = {}) {
     const isRace = theme === 'race';
+
+    // 🌟 사용자가 업로드한 다른 사진/손그림이 있으면 임의의 AI 벡터 동물 대신 이를 최우선 동반 캐릭터로 렌더링!
+    const otherPhotos = (options.uploadedPhotos || []).filter(p => !p.isProtagonist && p.transparentCanvas);
+    if (otherPhotos.length > 0) {
+      const compPhoto = otherPhotos[(pNum - 1) % otherPhotos.length];
+      if (compPhoto && compPhoto.transparentCanvas) {
+        const compCanvas = compPhoto.transparentCanvas;
+        const compCenterX = w * 0.72;
+        const compCenterY = h * 0.48;
+        const maxW = 340, maxH = 380;
+        const aspect = compCanvas.width / compCanvas.height;
+        let compDrawW = maxW, compDrawH = maxW / aspect;
+        if (compDrawH > maxH) { compDrawH = maxH; compDrawW = compDrawH * aspect; }
+        const compX = compCenterX - compDrawW / 2;
+        const compY = compCenterY - compDrawH / 2;
+        CharacterProcessor.renderCharacterWithStickerEffect(ctx, compCanvas, compX, compY, compDrawW, compDrawH, {
+          withSticker: true,
+          stickerColor: '#ffffff',
+          stickerWidth: 7,
+          shadowBlur: 14,
+          isPhoto: false
+        });
+        return;
+      }
+    }
+
+    // 주인공이 거북이인지 또는 거북이 스토리가 포함되어 있는지 파악 (중복 임의 거북이 생성 원천 차단)
+    const protoName = (options.characterName || pageInfo.protagonistName || '').toLowerCase();
+    const pageText = (pageInfo.text || '').toLowerCase();
+    const hasUploadedArt = options.uploadedPhotos && options.uploadedPhotos.length > 0;
+    const isTurtleStory = protoName.includes('거북') || protoName.includes('turtle') || pageText.includes('거북') || (pageInfo.friendText && pageInfo.friendText.includes('거북')) || isRace;
 
     // 1. 스토리 데이터에 직접 지정된 companion 정보가 있는 경우
     if (pageInfo.companion) {
       const comp = pageInfo.companion;
       if (!comp.type) return;
+      let compType = comp.type;
+      // 주인공이 이미 거북이이거나 업로드된 그림이 있는 경우, AI 만화 거북이 중복/임의 생성 차단 -> 토끼로 변경
+      if ((isTurtleStory || hasUploadedArt) && (compType.includes('거북') || compType.includes('turtle'))) {
+        compType = 'rabbit';
+      }
       const cx = comp.x !== undefined ? (comp.x <= 1 ? comp.x * w : comp.x) : w * 0.65;
       const cy = comp.y !== undefined ? (comp.y <= 1 ? comp.y * h : comp.y) : h * 0.48;
       const cSize = comp.size || 220;
       const cAction = comp.action || 'walking';
-      SceneActors.drawFriendCharacter(ctx, comp.type, cx, cy, cSize, cAction);
+      SceneActors.drawFriendCharacter(ctx, compType, cx, cy, cSize, cAction);
       return;
     }
 
-    // 2. 달리기 시합(race) 테마 기본 동반 캐릭터: 거북이
+    // 2. 달리기 시합(race) 테마 기본 동반 캐릭터:
     if (isRace) {
+      // 거북이가 주인공이거나 업로드된 그림이 있으면 상대는 무조건 달리기 토끼!
+      const raceOpponent = (isTurtleStory || hasUploadedArt) ? '토끼' : '거북이';
       switch (pNum) {
         case 1:
-          // 1장: 출발선에서 토끼 옆에 나란히 서서 머리띠 매고 출발 준비!
-          SceneActors.drawFriendCharacter(ctx, '거북이', w * 0.68, h * 0.49, 210, 'ready');
+          // 1장: 출발선에서 나란히 서서 머리띠 매고 출발 준비!
+          SceneActors.drawFriendCharacter(ctx, raceOpponent, w * 0.68, h * 0.49, 210, 'ready');
           break;
         case 2:
-          // 2장: 저 멀리 뒤쪽 언덕길에서 땀 흘리며 꾸준히 걸어오는 거북이
-          SceneActors.drawFriendCharacter(ctx, '거북이', w * 0.76, h * 0.48, 145, 'steady_walk');
+          // 2장: 저 멀리 뒤쪽 언덕길에서 땀 흘리며 꾸준히 걸어오기
+          SceneActors.drawFriendCharacter(ctx, raceOpponent, w * 0.76, h * 0.48, 145, 'steady_walk');
           break;
         case 3:
-          // 3장: 쉬고 있는 토끼를 씩씩하게 앞질러 달리는 거북이
-          SceneActors.drawFriendCharacter(ctx, '거북이', w * 0.62, h * 0.49, 225, 'overtaking');
+          // 3장: 쉬고 있는 친구를 씩씩하게 앞질러 달리기
+          SceneActors.drawFriendCharacter(ctx, raceOpponent, w * 0.62, h * 0.49, 225, 'overtaking');
           break;
         case 4:
-          // 4장: 결승선을 눈앞에 두고 씩씩하게 달려가는 거북이
-          SceneActors.drawFriendCharacter(ctx, '거북이', w * 0.68, h * 0.46, 220, 'walking');
+          // 4장: 결승선을 눈앞에 두고 씩씩하게 달려가기
+          SceneActors.drawFriendCharacter(ctx, raceOpponent, w * 0.68, h * 0.46, 220, 'walking');
           break;
         case 5:
-          // 5장: 1등 금메달을 목에 걸고 양손 번쩍 만세하는 승리의 거북이!
-          SceneActors.drawFriendCharacter(ctx, '거북이', w * 0.65, h * 0.48, 240, 'celebrating');
+          // 5장: 결승선에서 양손 번쩍 만세하며 축하하기!
+          SceneActors.drawFriendCharacter(ctx, raceOpponent, w * 0.65, h * 0.48, 240, 'celebrating');
           break;
       }
       return;
     }
 
-    // 3. 일반 테마: friendText에 실제 동물이 명시된 경우에만 2장/4장에 그림
+    // 3. 일반 테마: friendText에 실제 동물이 명시된 경우에만 2장/4장에 그림 (주인공과 중복 방지)
     if (pageInfo.friendText && pageInfo.friendText.trim().length > 0) {
       const ft = pageInfo.friendText.toLowerCase();
-      // 언급된 동물이 있을 때만 렌더링 (다람쥐 강제 등장 방지)
+      if ((isTurtleStory || hasUploadedArt) && (ft.includes('거북') || ft.includes('turtle'))) {
+        return; // 손그림이 있거나 거북이 스토리인 경우 임의 AI 거북이 그리지 않음
+      }
       if (ft.includes('거북') || ft.includes('강아지') || ft.includes('개') || ft.includes('고양이') ||
-          ft.includes('새') || ft.includes('곰') || ft.includes('다람쥐') || ft.includes('요정')) {
+          ft.includes('새') || ft.includes('곰') || ft.includes('다람쥐') || ft.includes('요정') || ft.includes('토끼')) {
         if (pNum === 2) {
           SceneActors.drawFriendCharacter(ctx, pageInfo.friendText, w * 0.68, h * 0.44, 230, 'greeting');
         } else if (pNum === 4) {

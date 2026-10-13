@@ -74,7 +74,7 @@ export class CharacterProcessor {
         for (const endpoint of uniqueEndpoints) {
           try {
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 7000);
+            const timeoutId = setTimeout(() => controller.abort(), 9000);
             const res = await fetch(endpoint, {
               method: 'POST',
               body: formData,
@@ -91,9 +91,22 @@ export class CharacterProcessor {
               const canvas = document.createElement('canvas');
               canvas.width = cutoutImg.naturalWidth;
               canvas.height = cutoutImg.naturalHeight;
-              const ctx = canvas.getContext('2d');
+              const ctx = canvas.getContext('2d', { willReadFrequently: true });
               ctx.drawImage(cutoutImg, 0, 0);
-              return CharacterProcessor.autoCrop(canvas);
+
+              // 🌟 AI 배경 제거 결과 유효 픽셀 검증 (그림이 통째로 날아갔는지 확인)
+              const idata = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              let nonZero = 0;
+              for (let pi = 3; pi < idata.data.length; pi += 4) {
+                if (idata.data[pi] > 25) nonZero++;
+              }
+              const totalPx = canvas.width * canvas.height;
+              if (nonZero > totalPx * 0.015) {
+                const cropped = CharacterProcessor.autoCrop(canvas);
+                return (cropped.width >= 60 && cropped.height >= 60) ? cropped : canvas;
+              } else {
+                console.warn('⚠️ rembg 결과 유효 픽셀 부족 -> 로컬 도화지 배경 제거로 안전 전환');
+              }
             }
           } catch (endpointErr) {
             // 다음 엔드포인트 시도
@@ -104,8 +117,20 @@ export class CharacterProcessor {
       console.warn('AI 배경 제거 실패 -> 로컬 알고리즘 폴백:', e);
     }
 
-    if (sourceImgOrBlob instanceof HTMLImageElement || sourceImgOrBlob instanceof HTMLCanvasElement) {
-      return CharacterProcessor.removePaperBackground(sourceImgOrBlob, 55, false, 'rounded');
+    const fallbackSource = (sourceImgOrBlob instanceof HTMLImageElement || sourceImgOrBlob instanceof HTMLCanvasElement)
+      ? sourceImgOrBlob
+      : img;
+
+    if (fallbackSource) {
+      const processed = CharacterProcessor.removePaperBackground(fallbackSource, 55, false, 'rounded');
+      if (processed) return processed;
+
+      // 비상 시 원본 캔버스 안전 보존 반환 (어떤 기기에서도 그림이 사라지지 않음)
+      const safeCanvas = document.createElement('canvas');
+      safeCanvas.width = fallbackSource.naturalWidth || fallbackSource.width || 800;
+      safeCanvas.height = fallbackSource.naturalHeight || fallbackSource.height || 800;
+      safeCanvas.getContext('2d').drawImage(fallbackSource, 0, 0, safeCanvas.width, safeCanvas.height);
+      return safeCanvas;
     }
     return null;
   }
@@ -421,7 +446,23 @@ export class CharacterProcessor {
     ctx.putImageData(imgData, 0, 0);
 
     // 9단계: 캐릭터 영역으로 자동 크롭
-    return CharacterProcessor.autoCrop(canvas);
+    const cropped = CharacterProcessor.autoCrop(canvas);
+    // 만약 크롭 후 남아있는 유효 픽셀이 1.5% 미만이면 원본 보존
+    const cCtx = cropped.getContext('2d', { willReadFrequently: true });
+    const cData = cCtx.getImageData(0, 0, cropped.width, cropped.height).data;
+    let validCount = 0;
+    for (let pi = 3; pi < cData.length; pi += 4) {
+      if (cData[pi] > 25) validCount++;
+    }
+    if (validCount < (targetW * targetH * 0.01) || cropped.width < 60 || cropped.height < 60) {
+      console.warn('도화지 배경 제거 후 유효 픽셀 부족 -> 원본 보존 캔버스 반환');
+      const safeCanvas = document.createElement('canvas');
+      safeCanvas.width = targetW;
+      safeCanvas.height = targetH;
+      safeCanvas.getContext('2d').drawImage(sourceImg, 0, 0, targetW, targetH);
+      return safeCanvas;
+    }
+    return cropped;
   }
 
   /**
@@ -538,6 +579,8 @@ export class CharacterProcessor {
 
     const cropW = maxX - minX + 1;
     const cropH = maxY - minY + 1;
+
+    if (cropW < 50 || cropH < 50) return canvas;
 
     const cropCanvas = document.createElement('canvas');
     cropCanvas.width = cropW;

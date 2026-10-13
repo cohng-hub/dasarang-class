@@ -214,11 +214,11 @@ def voice_clone(req: VoiceCloneRequest):
     if not text:
         raise HTTPException(status_code=400, detail="텍스트가 비어 있습니다.")
 
-    # 1. 만약 요청된 텍스트가 등록된 대본과 실질적으로 일치하면 즉시 원본 오디오 반환 (0초 지연)
+    # 1. 만약 요청된 텍스트가 등록된 대본과 완전히 일치하는 테스트 요청인 경우에만 원본 반환
     norm_req = "".join(text.split())
     norm_ref = "".join(_SAVED_REF_TEXT.split())
-    if norm_req and (norm_req == norm_ref or norm_req in norm_ref or norm_ref in norm_req):
-        print("⚡ 원본 녹음 대본과 일치 -> 즉각적인 무지연 오디오 반환!")
+    if norm_req and norm_req == norm_ref and len(norm_req) >= 30:
+        print("⚡ 원본 녹음 대본과 100% 일치 -> 원본 오디오 반환!")
         with open(_SAVED_VOICE_PATH, "rb") as f:
             return Response(content=f.read(), media_type="audio/wav")
 

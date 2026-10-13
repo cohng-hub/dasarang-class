@@ -82,6 +82,14 @@ export class TtsService {
     localStorage.setItem('qwen_tts_ref_text', this.refText);
   }
 
+  getCacheKey(text) {
+    return (text || '')
+      .replace(/["'“”‘’]/g, '')
+      .replace(/\n+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
   clearAudioCache() {
     for (const url of this.cachedAudioUrls.values()) {
       try { URL.revokeObjectURL(url); } catch (e) {}
@@ -92,11 +100,14 @@ export class TtsService {
   /**
    * 특정 페이지 텍스트 수정 시 캐시된 오디오 무효화
    */
-  invalidatePage(pageIndex) {
-    if (this.cachedAudioUrls.has(pageIndex)) {
-      const url = this.cachedAudioUrls.get(pageIndex);
-      try { URL.revokeObjectURL(url); } catch (e) {}
-      this.cachedAudioUrls.delete(pageIndex);
+  invalidatePage(pageIndex, text = '') {
+    if (text) {
+      const key = this.getCacheKey(text);
+      if (this.cachedAudioUrls.has(key)) {
+        const url = this.cachedAudioUrls.get(key);
+        try { URL.revokeObjectURL(url); } catch (e) {}
+        this.cachedAudioUrls.delete(key);
+      }
     }
   }
 
@@ -115,6 +126,7 @@ export class TtsService {
 
   /**
    * 전체 책 6장면(표지+5장)에 대해 백그라운드 선행 음성 합성 (클릭 시 0초 즉시 재생)
+   * 텍스트 단위 정밀 매칭 캐싱으로 다른 원아 책 음성 오출력 원천 방지
    */
   async preSynthesizeBook(renderedPages, storyData) {
     if (this.preSynthesizing || !renderedPages || !storyData) return;
@@ -122,17 +134,18 @@ export class TtsService {
     console.log('⚡ 6세 어린이 목소리 음성 백그라운드 사전 합성 시작...');
 
     const tasks = renderedPages.map(async (page, i) => {
-      if (this.cachedAudioUrls.has(i)) return;
-      const text = page.isCover
+      const rawText = page.isCover
         ? `${storyData.title}. 글과 그림, ${storyData.author}.`
         : page.text;
-      if (!text || !text.trim()) return;
+      const clean = this.getCacheKey(rawText);
+      if (!clean) return;
+      if (this.cachedAudioUrls.has(clean)) return;
 
       try {
-        const audioUrl = await this.synthesizeChildVoice(text);
+        const audioUrl = await this.synthesizeChildVoice(clean);
         if (audioUrl) {
-          this.cachedAudioUrls.set(i, audioUrl);
-          console.log(`✅ [${i}장] 6세 어린이 목소리 MP3 캐싱 완료`);
+          this.cachedAudioUrls.set(clean, audioUrl);
+          console.log(`✅ [${i}장] 6세 어린이 목소리 MP3 캐싱 완료: "${clean.slice(0, 15)}..."`);
         }
       } catch (err) {
         console.warn(`[${i}장] 사전 합성 건너뜀 (클릭 시 실시간 합성):`, err);
@@ -278,19 +291,20 @@ export class TtsService {
   async speak(text, pageIndex = -1) {
     this.stop();
 
-    if (!text || text.trim().length === 0) return;
+    const clean = this.getCacheKey(text);
+    if (!clean) return;
 
     if (this.onStateChange) this.onStateChange('loading', this.ttsMode);
 
     try {
-      let audioUrl = pageIndex >= 0 ? this.cachedAudioUrls.get(pageIndex) : null;
+      let audioUrl = this.cachedAudioUrls.get(clean);
 
       if (!audioUrl) {
         audioUrl = this.ttsMode === 'child'
-          ? await this.synthesizeChildVoice(text)
-          : await this.synthesizeVoiceClone(text);
-        if (pageIndex >= 0 && audioUrl) {
-          this.cachedAudioUrls.set(pageIndex, audioUrl);
+          ? await this.synthesizeChildVoice(clean)
+          : await this.synthesizeVoiceClone(clean);
+        if (audioUrl) {
+          this.cachedAudioUrls.set(clean, audioUrl);
         }
       }
 
@@ -314,7 +328,7 @@ export class TtsService {
         this.currentAudio.onerror = (e) => {
           console.warn('어린이 오디오 재생 오류, 비상 브라우저 음성 대체:', e);
           this.isPlaying = false;
-          this.speakChildVoice(text);
+          this.speakChildVoice(clean);
         };
 
         const playPromise = this.currentAudio.play();
@@ -328,7 +342,7 @@ export class TtsService {
     }
 
     // 서버 오프라인 비상 시 브라우저 내장 음성 대체
-    this.speakChildVoice(text);
+    this.speakChildVoice(clean);
   }
 
   /**

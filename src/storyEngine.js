@@ -201,12 +201,64 @@ export class StoryEngine {
    * 토끼와 거북이 및 달리기 시합 스토리 전용 5막 구성
    */
   static createRaceStory(characterName, text, customTitle, bookAuthor) {
+    const rawName = characterName || '거북이';
+    // 주인공이 거북이이거나, 텍스트가 거북이 중심이거나, 토끼가 주인공이 아닌 경우 -> 거북이가 경주의 멋진 주인공!
+    const isTurtleHero = rawName.includes('거북') || (text && (text.includes('거북') || text.includes('turtle'))) || (!rawName.includes('토끼'));
+    const heroName = rawName;
+    const nameGa = attachJosa(heroName, 'josa_ga');
+    const nameEun = attachJosa(heroName, 'josa_un');
+
     const title = customTitle && customTitle.trim().length > 0
       ? customTitle.trim()
-      : `토끼와 거북이`;
+      : (isTurtleHero ? `${heroName}와 토끼의 달리기 시합` : `토끼와 거북이`);
 
-    // 사용자의 원본 문장을 문맥에 맞게 보존하면서 5개 장면에 균형 있게 배분
-    const pages = [
+    const pages = isTurtleHero ? [
+      {
+        pageNumber: 1,
+        sceneTitle: '신나는 달리기 시합 시작!',
+        theme: 'race',
+        bgVariant: 'morning',
+        text: `어느 맑고 화창한 날, ${nameGa} 빠른 토끼와 함께 넓은 들판에서 신나는 달리기 시합을 시작했어요!`,
+        protagonistAction: 'ready_to_run',
+        companion: { type: 'rabbit', action: 'ready', x: 0.68, y: 0.49, size: 210 }
+      },
+      {
+        pageNumber: 2,
+        sceneTitle: '나무 그늘 아래서 쿨쿨 쉬어요',
+        theme: 'race',
+        bgVariant: 'day',
+        text: `토끼는 ${heroName}보다 쌩쌩 앞서 달리다가, 나무 그늘 아래서 여유를 부리며 쿨쿨 낮잠을 자기 시작했어요.`,
+        protagonistAction: 'steady_walk',
+        companion: { type: 'rabbit', action: 'sleeping_nap', x: 0.76, y: 0.48, size: 145 }
+      },
+      {
+        pageNumber: 3,
+        sceneTitle: '한 걸음 한 걸음 꾸준히!',
+        theme: 'race',
+        bgVariant: 'afternoon',
+        text: `토끼가 솔솔 잠든 사이에도, ${nameEun} 포기하지 않고 땀을 흘리며 한 걸음 한 걸음 꾸준히 앞질러 달렸어요.`,
+        protagonistAction: 'overtaking',
+        companion: { type: 'rabbit', action: 'sleeping_nap', x: 0.62, y: 0.49, size: 225 }
+      },
+      {
+        pageNumber: 4,
+        sceneTitle: '결승선이 저 앞에 보여요!',
+        theme: 'race',
+        bgVariant: 'sunset',
+        text: `잠에서 깬 토끼가 깜짝 놀라 뒤늦게 달려갔지만, ${nameEun} 이미 결승선을 눈앞에 두고 씩씩하게 앞서가고 있었어요!`,
+        protagonistAction: 'walking',
+        companion: { type: 'rabbit', action: 'running_fast', x: 0.68, y: 0.46, size: 220 }
+      },
+      {
+        pageNumber: 5,
+        sceneTitle: '멋진 승리와 소중한 우정',
+        theme: 'race',
+        bgVariant: 'celebration',
+        text: `마침내 ${nameGa} 결승선을 통과해 멋지게 이겼어요! 토끼도 활짝 웃으며 축하해주었고 둘은 소중한 친구가 되었답니다.`,
+        protagonistAction: 'celebrating',
+        companion: { type: 'rabbit', action: 'clapping_happy', x: 0.65, y: 0.48, size: 240 }
+      }
+    ] : [
       {
         pageNumber: 1,
         sceneTitle: '신나는 달리기 시합 시작!',
@@ -257,7 +309,7 @@ export class StoryEngine {
     return {
       title,
       author: bookAuthor,
-      characterName,
+      characterName: heroName,
       theme: 'race',
       pages
     };

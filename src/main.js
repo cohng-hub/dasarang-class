@@ -513,21 +513,24 @@ class PictureBookApp {
       const successfulItems = processedItems.filter(item => item !== null);
       if (successfulItems.length === 0) return;
 
-      const hasProtagonist = this.uploadedPhotos.some(p => p.isProtagonist);
-      if (!hasProtagonist && successfulItems.length > 0) {
-        successfulItems[0].isProtagonist = true;
-      }
+      // 🌟 사용자가 3단계에서 직접 사진/손그림을 올린 경우:
+      // 새로 올린 사진을 즉시 메인 주인공(👑)으로 지정하여 모든 장면에 온전히 반영!
+      this.uploadedPhotos.forEach(p => p.isProtagonist = false);
+      successfulItems[0].isProtagonist = true;
 
       this.uploadedPhotos.push(...successfulItems);
-      this.selectedPhotoIndex = startIndex;
-      const proto = this.uploadedPhotos.find(p => p.isProtagonist) || this.uploadedPhotos[0];
-      if (proto) {
-        this.character.rawImage = proto.rawImage;
-        this.character.transparentCanvas = proto.transparentCanvas;
-        this.character.name = proto.name || this.character.name;
-        if (this.badgeCharName) this.badgeCharName.textContent = this.character.name;
-        this.updateDefaultTitles();
+      const newProtoIdx = this.uploadedPhotos.indexOf(successfulItems[0]);
+      this.selectedPhotoIndex = newProtoIdx;
+
+      const proto = successfulItems[0];
+      this.character.rawImage = proto.rawImage;
+      this.character.transparentCanvas = proto.transparentCanvas;
+      this.character.isPhoto = false;
+      if (proto.name && proto.name !== '우리 친구') {
+        this.character.name = proto.name;
       }
+      if (this.badgeCharName) this.badgeCharName.textContent = this.character.name;
+      this.updateDefaultTitles();
 
       this.renderPreviewCanvas();
       this.renderPhotoSlots();
@@ -1083,6 +1086,9 @@ class PictureBookApp {
    */
   async selectChildProfile(child, autoAdvance = true) {
     this.currentSavedBookId = null; // 새 책 작성을 위해 저장 ID 초기화
+    if (this.ttsService) {
+      this.ttsService.clearAudioCache();
+    }
     this.selectedChild = child;
     this.character.name = child.name;
     this.character.description = child.tag || '#해솔반 사랑스러운 친구';
@@ -1331,6 +1337,34 @@ class PictureBookApp {
       this.updateLoadingProgress(25, '어린이의 재미있는 상상을 동화 이야기로 엮는 중이에요...');
       await new Promise(r => setTimeout(r, 400));
 
+      // 이야기 텍스트 분석 및 거북이/동물 그림 자동 매칭
+      const fullStoryText = (this.story.mode === 'free'
+        ? this.story.freeText
+        : `${this.story.qa?.where || ''} ${this.story.qa?.who || ''} ${this.story.qa?.event || ''} ${this.story.qa?.action || ''} ${this.story.qa?.ending || ''}`
+      ).toLowerCase();
+
+      const hasTurtleInStory = fullStoryText.includes('거북') || fullStoryText.includes('turtle') || (this.story.mode === 'free' && (fullStoryText.includes('시합') || fullStoryText.includes('달리기')));
+
+      // 🌟 모바일 카메라로 촬영해 'image.jpg'나 '친구 1'로 등록되었더라도 이야기가 거북이 관련이면 도화지 손그림을 '거북이'로 지능형 인식
+      if (hasTurtleInStory && this.uploadedPhotos && this.uploadedPhotos.length > 0) {
+        const drawingPhoto = this.uploadedPhotos.find(p => !p.isPhoto) || this.uploadedPhotos.find(p => !p.name || p.name === '우리 친구' || p.name.startsWith('친구 ') || p.name.toLowerCase().includes('image') || p.name.toLowerCase().includes('photo')) || this.uploadedPhotos[0];
+        if (drawingPhoto) {
+          drawingPhoto.name = '거북이';
+        }
+        if (!this.character.name || this.character.name === '우리 친구' || this.character.name === '몽실이' || this.character.name.startsWith('친구 ') || this.character.name.toLowerCase().includes('image')) {
+          this.character.name = '거북이';
+        }
+      }
+
+      // 주인공 사진 캔버스 사전 동기화 (isProtagonist가 설정된 사진)
+      const protoPhoto = this.uploadedPhotos.find(p => p.isProtagonist) || this.uploadedPhotos[0];
+      if (protoPhoto && protoPhoto.transparentCanvas) {
+        this.character.transparentCanvas = protoPhoto.transparentCanvas;
+        if (protoPhoto.name && protoPhoto.name !== '우리 친구') {
+          this.character.name = protoPhoto.name;
+        }
+      }
+
       // 이야기 생성 (로컬 유아 엔진 또는 Gemini API)
       const creatorChild = (this.selectedChild && this.selectedChild.name) ? this.selectedChild.name : this.character.name;
       const storyData = await StoryEngine.generateStory({
@@ -1357,13 +1391,6 @@ class PictureBookApp {
       this.updateLoadingProgress(90, '무지개 마법 물감으로 그림책 표지와 책장을 완성하는 중이에요...');
       await new Promise(r => setTimeout(r, 150));
 
-      // 주인공 사진 캔버스 동기화 (isProtagonist가 설정된 사진)
-      const protoPhoto = this.uploadedPhotos.find(p => p.isProtagonist) || this.uploadedPhotos[0];
-      if (protoPhoto && protoPhoto.transparentCanvas) {
-        this.character.transparentCanvas = protoPhoto.transparentCanvas;
-        this.character.name = protoPhoto.name || this.character.name;
-      }
-
       const pages = await BookRenderer.renderEntireBook(
         storyData,
         this.character.transparentCanvas,
@@ -1378,6 +1405,7 @@ class PictureBookApp {
 
       // TTS 백그라운드 사전 합성 시작 (0ms 즉시 재생)
       if (this.ttsService) {
+        this.ttsService.clearAudioCache();
         this.ttsService.preSynthesizeBook(pages, this.book.storyData);
       }
 
@@ -1626,12 +1654,13 @@ class PictureBookApp {
 
     // TTS 캐시 무효화 및 새로운 대본으로 백그라운드 즉각 재합성
     if (this.ttsService) {
-      this.ttsService.invalidatePage(idx);
       const readText = page.isCover
         ? `${this.book.storyData.title}. 글과 그림, ${this.book.storyData.author}.`
         : page.text;
-      this.ttsService.synthesizeVoiceClone(readText).then(blob => {
-        if (blob) this.ttsService.audioCache.set(idx, blob);
+      this.ttsService.invalidatePage(idx, newText);
+      const clean = this.ttsService.getCacheKey(readText);
+      this.ttsService.synthesizeChildVoice(clean).then(url => {
+        if (url) this.ttsService.cachedAudioUrls.set(clean, url);
       }).catch(err => console.warn('텍스트 수정 후 TTS 재합성:', err));
     }
 
@@ -1659,25 +1688,29 @@ class PictureBookApp {
   }
 
   extractFriendlyName(fileName, index) {
-    if (!fileName) return index === 0 ? '우리 친구' : `친구 ${index}`;
+    const defaultProto = this.character?.name || this.selectedChild?.name || '우리 친구';
+    if (!fileName) return index === 0 ? defaultProto : `친구 ${index}`;
     let base = fileName.replace(/\.[^/.]+$/, '').trim();
-    if (/^(kakaotalk|img_|screenshot_|photo_|image_|\d{8}_\d{6})/i.test(base)) {
-      return index === 0 ? '우리 친구' : `친구 ${index}`;
-    }
     const lower = base.toLowerCase();
+    if (lower.includes('turtle') || lower.includes('거북')) return '거북이';
     if (lower.includes('giraffe') || lower.includes('기린')) return '기린';
     if (lower.includes('rabbit') || lower.includes('bunny') || lower.includes('토끼')) return '토끼';
     if (lower.includes('cat') || lower.includes('kitty') || lower.includes('고양이')) return '고양이';
     if (lower.includes('dog') || lower.includes('puppy') || lower.includes('강아지')) return '강아지';
     if (lower.includes('bear') || lower.includes('곰')) return '곰돌이';
     if (lower.includes('bird') || lower.includes('새')) return '아기 새';
+    if (lower.includes('dino') || lower.includes('공룡')) return '공룡';
     if (lower.includes('lion') || lower.includes('사자')) return '사자';
     if (lower.includes('tiger') || lower.includes('호랑이')) return '호랑이';
     if (lower.includes('elephant') || lower.includes('코끼리')) return '코끼리';
 
+    if (/^(kakaotalk|img|screenshot|photo|image|camera|captured|blob|pic|\d{6,})/i.test(base)) {
+      return index === 0 ? defaultProto : `친구 ${index}`;
+    }
+
     base = base.replace(/[_-]/g, ' ').trim();
     base = base.replace(/(그림|사진|누끼|투명|작품)$/g, '').trim();
-    return base || (index === 0 ? '우리 친구' : `친구 ${index}`);
+    return base || (index === 0 ? defaultProto : `친구 ${index}`);
   }
 
   updateWhoRecommendationChips() {
@@ -2088,6 +2121,9 @@ class PictureBookApp {
     this.updateLoadingProgress(50, `‘${savedBook.title}’ 그림책을 책장에서 꺼내오는 중이에요...`);
 
     try {
+      if (this.ttsService) {
+        this.ttsService.clearAudioCache();
+      }
       this.currentSavedBookId = savedBook.id;
       this.book.storyData = savedBook.storyData;
       this.character.name = savedBook.protagonistName || savedBook.childName;
