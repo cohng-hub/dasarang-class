@@ -201,64 +201,12 @@ export class StoryEngine {
    * 토끼와 거북이 및 달리기 시합 스토리 전용 5막 구성
    */
   static createRaceStory(characterName, text, customTitle, bookAuthor) {
-    const rawName = characterName || '거북이';
-    // 주인공이 거북이이거나, 텍스트가 거북이 중심이거나, 토끼가 주인공이 아닌 경우 -> 거북이가 경주의 멋진 주인공!
-    const isTurtleHero = rawName.includes('거북') || (text && (text.includes('거북') || text.includes('turtle'))) || (!rawName.includes('토끼'));
-    const heroName = rawName;
-    const nameGa = attachJosa(heroName, 'josa_ga');
-    const nameEun = attachJosa(heroName, 'josa_un');
-
     const title = customTitle && customTitle.trim().length > 0
       ? customTitle.trim()
-      : (isTurtleHero ? `${heroName}와 토끼의 달리기 시합` : `토끼와 거북이`);
+      : `토끼와 거북이`;
 
-    const pages = isTurtleHero ? [
-      {
-        pageNumber: 1,
-        sceneTitle: '신나는 달리기 시합 시작!',
-        theme: 'race',
-        bgVariant: 'morning',
-        text: `어느 맑고 화창한 날, ${nameGa} 빠른 토끼와 함께 넓은 들판에서 신나는 달리기 시합을 시작했어요!`,
-        protagonistAction: 'ready_to_run',
-        companion: { type: 'rabbit', action: 'ready', x: 0.68, y: 0.49, size: 210 }
-      },
-      {
-        pageNumber: 2,
-        sceneTitle: '나무 그늘 아래서 쿨쿨 쉬어요',
-        theme: 'race',
-        bgVariant: 'day',
-        text: `토끼는 ${heroName}보다 쌩쌩 앞서 달리다가, 나무 그늘 아래서 여유를 부리며 쿨쿨 낮잠을 자기 시작했어요.`,
-        protagonistAction: 'steady_walk',
-        companion: { type: 'rabbit', action: 'sleeping_nap', x: 0.76, y: 0.48, size: 145 }
-      },
-      {
-        pageNumber: 3,
-        sceneTitle: '한 걸음 한 걸음 꾸준히!',
-        theme: 'race',
-        bgVariant: 'afternoon',
-        text: `토끼가 솔솔 잠든 사이에도, ${nameEun} 포기하지 않고 땀을 흘리며 한 걸음 한 걸음 꾸준히 앞질러 달렸어요.`,
-        protagonistAction: 'overtaking',
-        companion: { type: 'rabbit', action: 'sleeping_nap', x: 0.62, y: 0.49, size: 225 }
-      },
-      {
-        pageNumber: 4,
-        sceneTitle: '결승선이 저 앞에 보여요!',
-        theme: 'race',
-        bgVariant: 'sunset',
-        text: `잠에서 깬 토끼가 깜짝 놀라 뒤늦게 달려갔지만, ${nameEun} 이미 결승선을 눈앞에 두고 씩씩하게 앞서가고 있었어요!`,
-        protagonistAction: 'walking',
-        companion: { type: 'rabbit', action: 'running_fast', x: 0.68, y: 0.46, size: 220 }
-      },
-      {
-        pageNumber: 5,
-        sceneTitle: '멋진 승리와 소중한 우정',
-        theme: 'race',
-        bgVariant: 'celebration',
-        text: `마침내 ${nameGa} 결승선을 통과해 멋지게 이겼어요! 토끼도 활짝 웃으며 축하해주었고 둘은 소중한 친구가 되었답니다.`,
-        protagonistAction: 'celebrating',
-        companion: { type: 'rabbit', action: 'clapping_happy', x: 0.65, y: 0.48, size: 240 }
-      }
-    ] : [
+    // 사용자의 원본 문장을 문맥에 맞게 보존하면서 5개 장면에 균형 있게 배분
+    const pages = [
       {
         pageNumber: 1,
         sceneTitle: '신나는 달리기 시합 시작!',
@@ -309,7 +257,7 @@ export class StoryEngine {
     return {
       title,
       author: bookAuthor,
-      characterName: heroName,
+      characterName,
       theme: 'race',
       pages
     };
@@ -395,52 +343,61 @@ export class StoryEngine {
    * @param {string} [whereText] - 4단계 질문1의 장소 (예: "무지개 피어난 초록 숲속")
    */
   static detectTheme(text, whereText = '') {
-    const combined = `${whereText} ${text}`.toLowerCase();
+    const where = String(whereText || '').toLowerCase();
+    const combined = `${where} ${text || ''}`.toLowerCase();
 
-    // 1. 달리기 / 시합 / 경주 / 토끼와 거북이
-    if (combined.includes('달리기') || combined.includes('시합') || combined.includes('경주') ||
-        combined.includes('이어달리기') || combined.includes('마라톤') || combined.includes('운동회') ||
-        combined.includes('골인') || combined.includes('결승선') ||
-        (combined.includes('토끼') && combined.includes('거북'))) {
-      return 'race';
-    }
-
-    // 2. 바다 / 물속 / 해변
-    if (combined.includes('바다') || combined.includes('물속') || combined.includes('해변') ||
-        combined.includes('파도') || combined.includes('물고기') || combined.includes('고래') ||
-        combined.includes('상어') || combined.includes('헤엄') || combined.includes('모래사장')) {
-      return 'ocean';
-    }
-
-    // 3. 우주 / 로켓 (절대로 '달'이나 '별' 한 글자로 검사하지 않음! '우주', '로켓', '우주선', '행성', '은하수')
-    if (combined.includes('우주') || combined.includes('로켓') || combined.includes('우주선') ||
-        combined.includes('행성') || combined.includes('외계인') || combined.includes('은하수') ||
-        combined.includes('달나라') || combined.includes('별나라')) {
+    // 1. 장소(where)에 기재된 키워드를 최우선으로 검사 (이야기 장소에 100% 일치)
+    if (where.includes('우주') || where.includes('별빛') || where.includes('행성') || where.includes('달나라') || where.includes('은하수') || where.includes('로켓') || where.includes('우주선')) {
       return 'space';
     }
-
-    // 4. 숲속 / 자연 / 동산 / 숲길 (자연 테마를 확실히 감지)
-    if (combined.includes('숲') || combined.includes('숲속') || combined.includes('초록') ||
-        combined.includes('나무') || combined.includes('동산') || combined.includes('자연') ||
-        combined.includes('꽃밭') || combined.includes('풀밭') || combined.includes('들판') ||
-        combined.includes('정원') || combined.includes('산속')) {
+    if (where.includes('바다') || where.includes('물속') || where.includes('해변') || where.includes('산호') || where.includes('파도') || where.includes('수족관')) {
+      return 'ocean';
+    }
+    if (where.includes('눈') || where.includes('얼음') || where.includes('겨울') || where.includes('북극') || where.includes('남극') || where.includes('썰매') || where.includes('이글루')) {
+      return 'snow';
+    }
+    if (where.includes('무지개') || where.includes('솜사탕') || where.includes('구름') || where.includes('마법') || where.includes('과자') || where.includes('사탕') || where.includes('요정')) {
+      return 'rainbow';
+    }
+    if (where.includes('달리기') || where.includes('경주') || where.includes('시합') || where.includes('운동회') || where.includes('트랙') || where.includes('마라톤')) {
+      return 'race';
+    }
+    if (where.includes('놀이터') || where.includes('유치원') || where.includes('어린이집') || where.includes('학교') || where.includes('마을') || where.includes('공원') || where.includes('골목') || where.includes('우리집') || where.includes('방')) {
+      return 'village';
+    }
+    if (where.includes('텃밭') || where.includes('채소밭') || where.includes('당근밭') || where.includes('밭') || where.includes('농장') || where.includes('식물원')) {
+      return 'garden';
+    }
+    if (where.includes('숲') || where.includes('산') || where.includes('나무') || where.includes('정원') || where.includes('꽃밭') || where.includes('풀밭') || where.includes('들판') || where.includes('동산')) {
       return 'forest';
     }
 
-    // 5. 무지개 / 마법 나라
-    if (combined.includes('무지개') || combined.includes('구름 나라') || combined.includes('마법') ||
-        combined.includes('요정 나라') || combined.includes('사탕 나라')) {
+    // 2. 전체 문맥(combined)에서 순차 검사
+    if (combined.includes('우주') || combined.includes('로켓') || combined.includes('우주선') || combined.includes('행성') || combined.includes('외계인') || combined.includes('은하수') || combined.includes('달나라') || combined.includes('별나라') || combined.includes('별빛')) {
+      return 'space';
+    }
+    if (combined.includes('바다') || combined.includes('물속') || combined.includes('해변') || combined.includes('파도') || combined.includes('물고기') || combined.includes('고래') || combined.includes('상어') || combined.includes('헤엄') || combined.includes('모래사장')) {
+      return 'ocean';
+    }
+    if (combined.includes('눈사람') || combined.includes('눈썰매') || combined.includes('얼음왕국') || combined.includes('겨울') || combined.includes('빙판') || combined.includes('북극')) {
+      return 'snow';
+    }
+    if (combined.includes('무지개') || combined.includes('솜사탕') || combined.includes('마법 나라') || combined.includes('과자 나라') || combined.includes('사탕 나라') || combined.includes('요정 나라') || combined.includes('구름 나라')) {
       return 'rainbow';
     }
-
-    // 6. 마을 / 놀이터 / 우리 집 / 유치원
-    if (combined.includes('마을') || combined.includes('놀이터') || combined.includes('유치원') ||
-        combined.includes('어린이집') || combined.includes('학교') || combined.includes('공원') ||
-        combined.includes('우리 집') || combined.includes('골목길')) {
+    if (combined.includes('달리기') || combined.includes('시합') || combined.includes('경주') || combined.includes('이어달리기') || combined.includes('마라톤') || combined.includes('운동회') || combined.includes('골인') || combined.includes('결승선') || (combined.includes('토끼') && combined.includes('거북'))) {
+      return 'race';
+    }
+    if (combined.includes('놀이터') || combined.includes('미끄럼틀') || combined.includes('그네') || combined.includes('유치원') || combined.includes('어린이집') || combined.includes('학교') || combined.includes('공원') || combined.includes('마을') || combined.includes('우리 집') || combined.includes('골목길')) {
       return 'village';
     }
+    if (combined.includes('텃밭') || combined.includes('채소밭') || combined.includes('당근밭') || combined.includes('농장') || combined.includes('식물원')) {
+      return 'garden';
+    }
+    if (combined.includes('숲') || combined.includes('숲속') || combined.includes('초록') || combined.includes('나무') || combined.includes('동산') || combined.includes('자연') || combined.includes('꽃밭') || combined.includes('풀밭') || combined.includes('들판') || combined.includes('정원') || combined.includes('산속')) {
+      return 'forest';
+    }
 
-    // 기본값: 가장 따뜻하고 안정적인 숲속 모험 테마
     return 'forest';
   }
 
@@ -448,14 +405,22 @@ export class StoryEngine {
    * 텍스트에서 등장하는 동반 동물/캐릭터 감지
    */
   static detectCompanion(text) {
-    const t = text.toLowerCase();
-    if (t.includes('거북')) return 'turtle';
-    if (t.includes('강아지') || t.includes('멍멍') || t.includes('댕댕')) return 'puppy';
-    if (t.includes('고양이') || t.includes('야옹')) return 'cat';
+    if (!text) return null;
+    const t = String(text).toLowerCase();
+    if (t.includes('사슴벌레') || t.includes('사슴버레') || t.includes('stag')) return 'stag_beetle';
+    if (t.includes('장수풍뎅이') || t.includes('풍뎅이') || t.includes('beetle')) return 'beetle';
+    if (t.includes('무당벌레') || t.includes('무당') || t.includes('ladybug')) return 'ladybug';
+    if (t.includes('나비') || t.includes('butterfly')) return 'butterfly';
+    if (t.includes('외계인') || t.includes('외계') || t.includes('alien') || t.includes('우주인') || t.includes('외계친구')) return 'alien';
+    if (t.includes('거북') || t.includes('turtle')) return 'turtle';
+    if (t.includes('강아지') || t.includes('멍멍') || t.includes('댕댕') || t.includes('개')) return 'puppy';
+    if (t.includes('고양이') || t.includes('야옹') || t.includes('냥이')) return 'cat';
     if (t.includes('다람쥐') || t.includes('도토리')) return 'squirrel';
     if (t.includes('새') || t.includes('참새') || t.includes('파랑새')) return 'bird';
     if (t.includes('곰') || t.includes('곰돌')) return 'bear';
     if (t.includes('요정') || t.includes('천사')) return 'fairy';
+    if (t.includes('토끼')) return 'rabbit';
+    if (t.includes('곤충') || t.includes('벌레')) return 'stag_beetle';
     return null;
   }
 
@@ -546,7 +511,11 @@ export class StoryEngine {
 
     // 실제 서비스 중인 최신 Google Gemini 모델 목록
     const modelsToTry = [
+      'gemini-2.5-flash',
       'gemini-2.0-flash',
+      'gemini-1.5-flash-latest',
+      'gemini-1.5-flash-002',
+      'gemini-1.5-flash-8b',
       'gemini-1.5-flash',
       'gemini-1.5-pro'
     ];
@@ -610,36 +579,45 @@ export class StoryEngine {
   }
 
   /**
-   * Gemini API 키 유효성 테스트
+   * Gemini API 키 유효성 테스트 (구글 공식 ListModels API 및 최신 모델 자동 탐색)
    */
   static async testApiKey(apiKey) {
     if (!apiKey || apiKey.trim().length < 10) {
       return { success: false, message: '올바른 API 키를 입력해 주세요.' };
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 6000);
+    const key = apiKey.trim();
 
     try {
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey.trim()}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: 'Hello' }] }]
-        })
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 7000);
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`, {
+        signal: controller.signal
       });
       clearTimeout(timeoutId);
 
       if (res.ok) {
-        return { success: true, message: '✅ Gemini API 연결 성공! 최신 AI 스토리 생성이 활성화되었습니다.' };
+        const data = await res.json();
+        const availableModels = (data.models || [])
+          .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+          .map(m => m.name.replace('models/', ''));
+
+        const matched = availableModels.find(m => m.includes('2.5-flash'))
+          || availableModels.find(m => m.includes('2.0-flash'))
+          || availableModels.find(m => m.includes('flash'))
+          || availableModels[0]
+          || 'Gemini AI';
+
+        return {
+          success: true,
+          message: `✅ Gemini API 연결 성공! (${matched} 모델 활성화됨)`
+        };
       } else {
         const errData = await res.json().catch(() => ({}));
         const msg = errData.error?.message || `HTTP ${res.status}`;
         return { success: false, message: `❌ 연결 실패: ${msg}` };
       }
     } catch (err) {
-      clearTimeout(timeoutId);
       return { success: false, message: `❌ 요청 오류: ${err.message || '네트워크 오류 또는 시간 초과'}` };
     }
   }

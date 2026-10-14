@@ -26,7 +26,17 @@ export class SceneActors {
     ctx.save();
     ctx.translate(x, y);
 
-    if (type.includes('거북') || type.includes('turtle')) {
+    if (type.includes('사슴벌레') || type.includes('사슴버레') || type.includes('stag')) {
+      SceneActors.drawStagBeetle(ctx, size, act);
+    } else if (type.includes('장수풍뎅이') || type.includes('풍뎅이') || type.includes('beetle')) {
+      SceneActors.drawBeetle(ctx, size, act);
+    } else if (type.includes('무당벌레') || type.includes('무당') || type.includes('ladybug')) {
+      SceneActors.drawLadybug(ctx, size, act);
+    } else if (type.includes('나비') || type.includes('butterfly')) {
+      SceneActors.drawButterfly(ctx, size, act);
+    } else if (type.includes('외계인') || type.includes('외계') || type.includes('alien') || type.includes('우주인') || type.includes('외계친구')) {
+      SceneActors.drawCuteAlien(ctx, size, act);
+    } else if (type.includes('거북') || type.includes('turtle')) {
       SceneActors.drawTurtle(ctx, size, act);
     } else if (type.includes('강아지') || type.includes('개') || type.includes('puppy') || type.includes('dog')) {
       SceneActors.drawPuppy(ctx, size, act);
@@ -42,6 +52,13 @@ export class SceneActors {
       SceneActors.drawCloudFairy(ctx, size, act);
     } else if (type.includes('토끼') || type.includes('rabbit')) {
       SceneActors.drawFriendRabbit(ctx, size, act);
+    } else {
+      // 그 외 곤충이나 동물 입력 시 귀여운 사슴벌레/숲속 친구 스타일로 안정적 렌더링
+      if (type.includes('곤충') || type.includes('벌레')) {
+        SceneActors.drawStagBeetle(ctx, size, act);
+      } else {
+        SceneActors.drawTurtle(ctx, size, act);
+      }
     }
 
     ctx.restore();
@@ -883,6 +900,484 @@ export class SceneActors {
       ctx.fillText('✨', -40, -40);
       ctx.fillText('💫', 30, -30);
     }
+
+    ctx.restore();
+  }
+
+  // ==========================================
+  // [8] 사슴벌레 캐릭터 (Stag Beetle)
+  // ==========================================
+  static drawStagBeetle(ctx, size = 220, action = 'greeting') {
+    ctx.save();
+    const scale = size / 220;
+    ctx.scale(scale, scale);
+
+    // 그림자
+    ctx.save();
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.14)';
+    ctx.beginPath();
+    ctx.ellipse(0, 70, 65, 18, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 1. 다리 6개 (귀여운 관절 다리)
+    ctx.save();
+    ctx.strokeStyle = '#3E2723';
+    ctx.lineWidth = 5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const isCelebrate = action === 'celebrating';
+    const isGreeting = action === 'greeting';
+
+    // 왼쪽 다리 3개
+    ctx.beginPath();
+    if (isGreeting) {
+      ctx.moveTo(-25, -5);
+      ctx.quadraticCurveTo(-55, -35, -50, -65); // 번쩍 들어 안녕 인사
+    } else if (isCelebrate) {
+      ctx.moveTo(-25, -5);
+      ctx.quadraticCurveTo(-60, -40, -55, -70);
+    } else {
+      ctx.moveTo(-25, 0);
+      ctx.quadraticCurveTo(-50, 10, -65, 30);
+    }
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-28, 20);
+    ctx.quadraticCurveTo(-60, 25, -70, 50);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-25, 45);
+    ctx.quadraticCurveTo(-55, 60, -65, 80);
+    ctx.stroke();
+
+    // 오른쪽 다리 3개
+    ctx.beginPath();
+    if (isCelebrate) {
+      ctx.moveTo(25, -5);
+      ctx.quadraticCurveTo(60, -40, 55, -70);
+    } else {
+      ctx.moveTo(25, 0);
+      ctx.quadraticCurveTo(50, 10, 65, 30);
+    }
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(28, 20);
+    ctx.quadraticCurveTo(60, 25, 70, 50);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(25, 45);
+    ctx.quadraticCurveTo(55, 60, 65, 80);
+    ctx.stroke();
+    ctx.restore();
+
+    // 2. 몸통 (배/등껍질 - 광택감 있는 밤색)
+    ctx.save();
+    const shellGrad = ctx.createLinearGradient(-40, 0, 40, 80);
+    shellGrad.addColorStop(0, '#6D4C41');
+    shellGrad.addColorStop(0.5, '#4E342E');
+    shellGrad.addColorStop(1, '#2E1C14');
+    ctx.fillStyle = shellGrad;
+    ctx.strokeStyle = '#1D100B';
+    ctx.lineWidth = 4;
+
+    ctx.beginPath();
+    ctx.ellipse(0, 38, 44, 46, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // 날개 분할선
+    ctx.beginPath();
+    ctx.moveTo(0, -5);
+    ctx.lineTo(0, 82);
+    ctx.strokeStyle = '#1D100B';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    // 등껍질 광택 하이라이트
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.28)';
+    ctx.beginPath();
+    ctx.ellipse(-18, 28, 12, 28, -0.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 3. 가슴마디
+    ctx.save();
+    ctx.fillStyle = '#3E2723';
+    ctx.strokeStyle = '#1D100B';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(0, -6, 36, 20, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    // 4. 머리마디
+    ctx.save();
+    ctx.fillStyle = '#2E1C14';
+    ctx.strokeStyle = '#1D100B';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(0, -28, 30, 18, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    // 5. 사슴벌레 큰 턱 (사슴뿔 모양의 멋진 집게 턱!)
+    ctx.save();
+    ctx.fillStyle = '#1D100B';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+
+    // 왼쪽 턱
+    ctx.beginPath();
+    ctx.moveTo(-16, -35);
+    ctx.bezierCurveTo(-38, -60, -42, -90, -18, -108);
+    ctx.bezierCurveTo(-14, -100, -22, -80, -16, -65);
+    ctx.bezierCurveTo(-10, -60, -14, -50, -8, -40);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(-28, -78);
+    ctx.lineTo(-14, -80);
+    ctx.lineTo(-24, -70);
+    ctx.closePath();
+    ctx.fill();
+
+    // 오른쪽 턱
+    ctx.beginPath();
+    ctx.moveTo(16, -35);
+    ctx.bezierCurveTo(38, -60, 42, -90, 18, -108);
+    ctx.bezierCurveTo(14, -100, 22, -80, 16, -65);
+    ctx.bezierCurveTo(10, -60, 14, -50, 8, -40);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(28, -78);
+    ctx.lineTo(14, -80);
+    ctx.lineTo(24, -70);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    // 6. 더듬이 2개
+    ctx.save();
+    ctx.strokeStyle = '#3E2723';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-12, -35);
+    ctx.quadraticCurveTo(-35, -45, -30, -60);
+    ctx.moveTo(12, -35);
+    ctx.quadraticCurveTo(35, -45, 30, -60);
+    ctx.stroke();
+    ctx.restore();
+
+    // 7. 귀여운 동화 스타일 커다란 반짝이 눈!
+    ctx.save();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(-15, -26, 11, 0, Math.PI * 2);
+    ctx.arc(15, -26, 11, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#1D100B';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#1D100B';
+    ctx.beginPath();
+    ctx.arc(-14, -26, 7, 0, Math.PI * 2);
+    ctx.arc(14, -26, 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(-16, -29, 3.5, 0, Math.PI * 2);
+    ctx.arc(12, -29, 3.5, 0, Math.PI * 2);
+    ctx.arc(-12, -23, 1.8, 0, Math.PI * 2);
+    ctx.arc(16, -23, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 분홍 볼터치
+    ctx.fillStyle = '#FF8A80';
+    ctx.beginPath();
+    ctx.ellipse(-22, -18, 6, 4, 0, 0, Math.PI * 2);
+    ctx.ellipse(22, -18, 6, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 방긋 웃는 귀여운 입
+    ctx.strokeStyle = '#D84315';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, -20, 8, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+    ctx.restore();
+
+    if (isGreeting || isCelebrate) {
+      ctx.save();
+      ctx.font = '22px sans-serif';
+      ctx.fillText('✨', -70, -75);
+      if (isCelebrate) ctx.fillText('🌟', 60, -75);
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }
+
+  // ==========================================
+  // [9] 장수풍뎅이 (Rhinoceros Beetle)
+  // ==========================================
+  static drawBeetle(ctx, size = 220, action = 'greeting') {
+    ctx.save();
+    const scale = size / 220;
+    ctx.scale(scale, scale);
+
+    // 몸체 (사슴벌레와 비슷하되 이마에 늠름한 Y자 뿔)
+    SceneActors.drawStagBeetle(ctx, 220, action);
+
+    // 중앙 위쪽 장수풍뎅이 메인 뿔 추가
+    ctx.save();
+    ctx.fillStyle = '#1D100B';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-10, -40);
+    ctx.lineTo(-6, -95);
+    ctx.lineTo(-20, -112); // 왼쪽 갈래
+    ctx.lineTo(-12, -115);
+    ctx.lineTo(0, -100);
+    ctx.lineTo(12, -115);
+    ctx.lineTo(20, -112); // 오른쪽 갈래
+    ctx.lineTo(6, -95);
+    ctx.lineTo(10, -40);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  // ==========================================
+  // [10] 무당벌레 (Ladybug)
+  // ==========================================
+  static drawLadybug(ctx, size = 200, action = 'greeting') {
+    ctx.save();
+    const scale = size / 200;
+    ctx.scale(scale, scale);
+
+    // 그림자
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.12)';
+    ctx.beginPath();
+    ctx.ellipse(0, 50, 55, 16, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 다리
+    ctx.strokeStyle = '#2D3436';
+    ctx.lineWidth = 4;
+    ctx.lineCap = 'round';
+    [-35, 0, 35].forEach(dy => {
+      ctx.beginPath();
+      ctx.moveTo(-30, dy); ctx.lineTo(-50, dy + 15);
+      ctx.moveTo(30, dy); ctx.lineTo(50, dy + 15);
+      ctx.stroke();
+    });
+
+    // 빨간 등껍질
+    ctx.fillStyle = '#FF4757';
+    ctx.strokeStyle = '#2F3542';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(0, 15, 45, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+
+    // 등껍질 점들
+    ctx.fillStyle = '#2F3542';
+    [[-20, 0], [20, 0], [-25, 25], [25, 25], [-12, 42], [12, 42], [0, -10]].forEach(([px, py]) => {
+      ctx.beginPath();
+      ctx.arc(px, py, 7, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // 머리
+    ctx.fillStyle = '#2F3542';
+    ctx.beginPath();
+    ctx.arc(0, -32, 22, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 눈
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(-8, -32, 6, 0, Math.PI * 2);
+    ctx.arc(8, -32, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#000000';
+    ctx.beginPath();
+    ctx.arc(-7, -32, 3.5, 0, Math.PI * 2);
+    ctx.arc(7, -32, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 더듬이
+    ctx.strokeStyle = '#2F3542';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(-8, -48); ctx.lineTo(-18, -65);
+    ctx.moveTo(8, -48); ctx.lineTo(18, -65);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(-20, -66, 4, 0, Math.PI * 2);
+    ctx.arc(20, -66, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // ==========================================
+  // [11] 나비 (Butterfly)
+  // ==========================================
+  static drawButterfly(ctx, size = 200, action = 'greeting') {
+    ctx.save();
+    const scale = size / 200;
+    ctx.scale(scale, scale);
+
+    // 날개 4장 (알록달록 파스텔)
+    const wingGrad = ctx.createLinearGradient(-60, -60, 60, 60);
+    wingGrad.addColorStop(0, '#FF9FF3');
+    wingGrad.addColorStop(0.5, '#FECA57');
+    wingGrad.addColorStop(1, '#54A0FF');
+    ctx.fillStyle = wingGrad;
+    ctx.strokeStyle = '#5F27CD';
+    ctx.lineWidth = 3;
+
+    // 왼쪽 날개
+    ctx.beginPath();
+    ctx.ellipse(-38, -25, 34, 46, -0.4, 0, Math.PI * 2);
+    ctx.ellipse(-32, 25, 26, 34, 0.4, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+
+    // 오른쪽 날개
+    ctx.beginPath();
+    ctx.ellipse(38, -25, 34, 46, 0.4, 0, Math.PI * 2);
+    ctx.ellipse(32, 25, 26, 34, -0.4, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+
+    // 몸통
+    ctx.fillStyle = '#341F97';
+    ctx.beginPath();
+    ctx.ellipse(0, 5, 9, 36, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 머리와 눈
+    ctx.beginPath();
+    ctx.arc(0, -32, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(-4, -33, 4, 0, Math.PI * 2);
+    ctx.arc(4, -33, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 더듬이
+    ctx.strokeStyle = '#341F97';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(-4, -42); ctx.quadraticCurveTo(-18, -60, -14, -70);
+    ctx.moveTo(4, -42); ctx.quadraticCurveTo(18, -60, 14, -70);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  // ==========================================
+  // [12] 귀여운 외계인 친구 (Cute Alien)
+  // ==========================================
+  static drawCuteAlien(ctx, size = 220, action = 'greeting') {
+    ctx.save();
+    const scale = size / 220;
+    ctx.scale(scale, scale);
+
+    // 그림자
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+    ctx.beginPath();
+    ctx.ellipse(0, 60, 55, 16, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 귀여운 민트색 몸체
+    const alienGrad = ctx.createRadialGradient(-10, -10, 10, 0, 0, 60);
+    alienGrad.addColorStop(0, '#55EFC4');
+    alienGrad.addColorStop(1, '#00B894');
+    ctx.fillStyle = alienGrad;
+    ctx.strokeStyle = '#006266';
+    ctx.lineWidth = 4;
+
+    // 몸통
+    ctx.beginPath();
+    ctx.ellipse(0, 18, 38, 42, 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+
+    // 머리 (둥글고 귀여운 외계인)
+    ctx.beginPath();
+    ctx.ellipse(0, -28, 44, 38, 0, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+
+    // 머리 위 별 안테나
+    ctx.strokeStyle = '#006266';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(0, -66); ctx.lineTo(0, -88);
+    ctx.stroke();
+
+    ctx.font = '24px sans-serif';
+    ctx.fillText('⭐', -12, -92);
+
+    // 커다란 초롱초롱한 눈
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(-16, -26, 14, 0, Math.PI * 2);
+    ctx.arc(16, -26, 14, 0, Math.PI * 2);
+    ctx.fill(); ctx.stroke();
+
+    ctx.fillStyle = '#2C3E50';
+    ctx.beginPath();
+    ctx.arc(-15, -26, 9, 0, Math.PI * 2);
+    ctx.arc(15, -26, 9, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(-18, -30, 4, 0, Math.PI * 2);
+    ctx.arc(13, -30, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 분홍 볼터치
+    ctx.fillStyle = '#FF7675';
+    ctx.beginPath();
+    ctx.arc(-24, -15, 6, 0, Math.PI * 2);
+    ctx.arc(24, -15, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 환하게 웃는 입
+    ctx.strokeStyle = '#D63031';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, -18, 9, 0.2, Math.PI - 0.2);
+    ctx.stroke();
+
+    // 손인사
+    ctx.strokeStyle = '#006266';
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(-32, 10); ctx.lineTo(-55, -25);
+    ctx.moveTo(32, 10); ctx.lineTo(48, 25);
+    ctx.stroke();
 
     ctx.restore();
   }

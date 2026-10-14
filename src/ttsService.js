@@ -55,14 +55,11 @@ export class TtsService {
       if (voices.length === 0) return;
 
       const koVoices = voices.filter(v => v.lang && (v.lang.startsWith('ko') || v.lang.includes('KR')));
-      // 6세 귀여운 어린이 음색 우선순위 (SunHi 신경망 > 구글 > Yuna > 기타)
-      // 혜미(Heami)는 윈도우 성인 여성 음색이므로 최하위 순위로 강등
       const best = koVoices.find(v => v.name.includes('SunHi') && v.name.includes('Natural'))
         || koVoices.find(v => v.name.includes('SunHi'))
+        || koVoices.find(v => v.name.includes('Heami'))
         || koVoices.find(v => v.name.includes('Google') || v.name.includes('한국'))
         || koVoices.find(v => v.name.includes('Yuna'))
-        || koVoices.find(v => !v.name.includes('Heami'))
-        || koVoices.find(v => v.name.includes('Heami'))
         || koVoices[0]
         || voices.find(v => v.lang && v.lang.startsWith('ko'));
 
@@ -86,31 +83,38 @@ export class TtsService {
   }
 
   getCacheKey(text) {
-    return (text || '')
+    if (!text) return '';
+    const clean = String(text)
       .replace(/["'“”‘’]/g, '')
-      .replace(/\n+/g, ' ')
+      .replace(/\n+/g, ', ')
       .replace(/\s+/g, ' ')
       .trim();
+    return `${this.ttsMode}:${clean}`;
   }
 
   clearAudioCache() {
+    this.stop();
     for (const url of this.cachedAudioUrls.values()) {
       try { URL.revokeObjectURL(url); } catch (e) {}
     }
     this.cachedAudioUrls.clear();
+    console.log('🧹 [TTS 캐시 완전 초기화] 이전 이야기 오디오 캐시 모두 삭제됨');
   }
 
   /**
    * 특정 페이지 텍스트 수정 시 캐시된 오디오 무효화
    */
-  invalidatePage(pageIndex, text = '') {
-    if (text) {
-      const key = this.getCacheKey(text);
-      if (this.cachedAudioUrls.has(key)) {
-        const url = this.cachedAudioUrls.get(key);
-        try { URL.revokeObjectURL(url); } catch (e) {}
-        this.cachedAudioUrls.delete(key);
-      }
+  invalidatePage(pageIndex) {
+    this.clearAudioCache();
+  }
+
+  invalidateText(text) {
+    if (!text) return;
+    const key = this.getCacheKey(text);
+    if (this.cachedAudioUrls.has(key)) {
+      const url = this.cachedAudioUrls.get(key);
+      try { URL.revokeObjectURL(url); } catch (e) {}
+      this.cachedAudioUrls.delete(key);
     }
   }
 
@@ -129,26 +133,26 @@ export class TtsService {
 
   /**
    * 전체 책 6장면(표지+5장)에 대해 백그라운드 선행 음성 합성 (클릭 시 0초 즉시 재생)
-   * 텍스트 단위 정밀 매칭 캐싱으로 다른 원아 책 음성 오출력 원천 방지
    */
   async preSynthesizeBook(renderedPages, storyData) {
-    if (this.preSynthesizing || !renderedPages || !storyData) return;
+    if (!renderedPages || !storyData) return;
     this.preSynthesizing = true;
     console.log('⚡ 6세 어린이 목소리 음성 백그라운드 사전 합성 시작...');
 
     const tasks = renderedPages.map(async (page, i) => {
-      const rawText = page.isCover
+      const text = page.isCover
         ? `${storyData.title}. 글과 그림, ${storyData.author}.`
         : page.text;
-      const clean = this.getCacheKey(rawText);
-      if (!clean) return;
-      if (this.cachedAudioUrls.has(clean)) return;
+      if (!text || !text.trim()) return;
+
+      const key = this.getCacheKey(text);
+      if (this.cachedAudioUrls.has(key)) return;
 
       try {
-        const audioUrl = await this.synthesizeChildVoice(clean);
+        const audioUrl = await this.synthesizeChildVoice(text);
         if (audioUrl) {
-          this.cachedAudioUrls.set(clean, audioUrl);
-          console.log(`✅ [${i}장] 6세 어린이 목소리 MP3 캐싱 완료: "${clean.slice(0, 15)}..."`);
+          this.cachedAudioUrls.set(key, audioUrl);
+          console.log(`✅ [${i}장] 6세 어린이 목소리 MP3 캐싱 완료 (${text.slice(0, 25)}...)`);
         }
       } catch (err) {
         console.warn(`[${i}장] 사전 합성 건너뜀 (클릭 시 실시간 합성):`, err);
@@ -294,20 +298,22 @@ export class TtsService {
   async speak(text, pageIndex = -1) {
     this.stop();
 
-    const clean = this.getCacheKey(text);
-    if (!clean) return;
+    if (!text || text.trim().length === 0) return;
 
     if (this.onStateChange) this.onStateChange('loading', this.ttsMode);
 
+    const key = this.getCacheKey(text);
+
     try {
-      let audioUrl = this.cachedAudioUrls.get(clean);
+      let audioUrl = key ? this.cachedAudioUrls.get(key) : null;
 
       if (!audioUrl) {
+        console.log(`🎙️ 새 텍스트 실시간 음성 합성 진행: "${text.slice(0, 30)}..."`);
         audioUrl = this.ttsMode === 'child'
-          ? await this.synthesizeChildVoice(clean)
-          : await this.synthesizeVoiceClone(clean);
-        if (audioUrl) {
-          this.cachedAudioUrls.set(clean, audioUrl);
+          ? await this.synthesizeChildVoice(text)
+          : await this.synthesizeVoiceClone(text);
+        if (key && audioUrl) {
+          this.cachedAudioUrls.set(key, audioUrl);
         }
       }
 
@@ -331,7 +337,7 @@ export class TtsService {
         this.currentAudio.onerror = (e) => {
           console.warn('어린이 오디오 재생 오류, 비상 브라우저 음성 대체:', e);
           this.isPlaying = false;
-          this.speakChildVoice(clean);
+          this.speakChildVoice(text);
         };
 
         const playPromise = this.currentAudio.play();
@@ -345,7 +351,7 @@ export class TtsService {
     }
 
     // 서버 오프라인 비상 시 브라우저 내장 음성 대체
-    this.speakChildVoice(clean);
+    this.speakChildVoice(text);
   }
 
   /**
@@ -385,9 +391,8 @@ export class TtsService {
       utterance.voice = this.selectedVoice;
     }
 
-    const isAdultHeami = this.selectedVoice && this.selectedVoice.name.includes('Heami');
-    utterance.pitch = isAdultHeami ? 1.70 : 1.45;
-    utterance.rate = isAdultHeami ? 1.08 : 1.05;
+    utterance.pitch = 1.45;
+    utterance.rate = 1.05;
     utterance.volume = 1.0;
 
     utterance.onstart = () => {

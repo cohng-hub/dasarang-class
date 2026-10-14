@@ -16,7 +16,11 @@ export class SceneTemplates {
       SceneTemplates.renderOceanTheme(ctx, width, height, pageNumber);
     } else if (t === 'space') {
       SceneTemplates.renderSpaceTheme(ctx, width, height, pageNumber);
-    } else if (t === 'village' || t === 'town') {
+    } else if (t === 'snow' || t === 'winter' || t === 'ice') {
+      SceneTemplates.renderSnowTheme(ctx, width, height, pageNumber);
+    } else if (t === 'garden' || t === 'farm' || t === 'vegetable') {
+      SceneTemplates.renderGardenTheme(ctx, width, height, pageNumber);
+    } else if (t === 'village' || t === 'town' || t === 'playground') {
       SceneTemplates.renderVillageTheme(ctx, width, height, pageNumber);
     } else if (t === 'rainbow') {
       SceneTemplates.renderRainbowTheme(ctx, width, height, pageNumber);
@@ -748,30 +752,67 @@ export class SceneTemplates {
   }
 
   static drawSpaceStep1Launch(ctx, w, h) {
-    // 1장: 상쾌한 아침 발사대 (우주로 향하는 아침 출발)
-    const sky = ctx.createLinearGradient(0, 0, 0, h * 0.6);
-    sky.addColorStop(0, '#74B9FF');
-    sky.addColorStop(0.5, '#A0E4F1');
-    sky.addColorStop(1, '#FFFDE4');
+    // 1장: 신비한 우주 은하수와 발사 플랫폼 (잔디밭 전면 제거, 완전한 우주 배경)
+    const sky = ctx.createLinearGradient(0, 0, 0, h * 0.7);
+    sky.addColorStop(0, '#0B0C10');
+    sky.addColorStop(0.5, '#1B1464');
+    sky.addColorStop(1, '#2E1A47');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, w, h);
 
-    SceneTemplates.drawSun(ctx, 130, 110, 48, '#FFA502');
-    SceneTemplates.drawFluffyCloud(ctx, w * 0.45, h * 0.15, 65);
-    SceneTemplates.drawFluffyCloud(ctx, w * 0.82, h * 0.20, 50);
+    // 반짝이는 무수한 은하수 별빛
+    SceneTemplates.drawTwinkles(ctx, 80, w, h * 0.7);
 
-    // 완만한 초록 언덕
-    ctx.fillStyle = '#55EFC4';
-    SceneTemplates.drawHill(ctx, 0, h * 0.52, w, 100, 3);
-    ctx.fillStyle = '#00B894';
-    ctx.fillRect(0, h * 0.65, w, h * 0.35);
+    // 저 멀리 떠 있는 환상적인 토성과 신비한 푸른 행성
+    SceneTemplates.drawSaturnPlanet(ctx, w * 0.82, h * 0.20, 52);
 
-    // 발사대 타워 실루엣
+    // 달나라/신비한 행성 오라
     ctx.save();
-    ctx.fillStyle = '#636E72';
-    ctx.fillRect(w * 0.75, h * 0.35, 18, h * 0.32);
-    ctx.fillRect(w * 0.72, h * 0.45, 36, 8);
-    ctx.fillRect(w * 0.72, h * 0.55, 36, 8);
+    const planetAura = ctx.createRadialGradient(w * 0.20, h * 0.22, 10, w * 0.20, h * 0.22, 50);
+    planetAura.addColorStop(0, '#00F2FE');
+    planetAura.addColorStop(0.6, '#4FACFE');
+    planetAura.addColorStop(1, 'transparent');
+    ctx.fillStyle = planetAura;
+    ctx.beginPath();
+    ctx.arc(w * 0.20, h * 0.22, 50, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+
+    // 미래형 우주 기지 / 달표면 플랫폼 (어두운 메탈릭 슬레이트 + 네온 가이드라인)
+    ctx.fillStyle = '#1A1C29';
+    ctx.beginPath();
+    ctx.moveTo(0, h * 0.62);
+    ctx.bezierCurveTo(w * 0.35, h * 0.59, w * 0.7, h * 0.64, w, h * 0.60);
+    ctx.lineTo(w, h);
+    ctx.lineTo(0, h);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#121420';
+    ctx.fillRect(0, h * 0.72, w, h * 0.28);
+
+    // 우주 활주로 네온 가이드 라인 (사이버 민트/시안)
+    ctx.save();
+    ctx.strokeStyle = '#00F2FE';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = '#00F2FE';
+    ctx.shadowBlur = 12;
+    ctx.setLineDash([20, 15]);
+    ctx.beginPath();
+    ctx.moveTo(0, h * 0.72);
+    ctx.lineTo(w, h * 0.72);
+    ctx.stroke();
+
+    // 우주 기지 발사대 안테나 실루엣
+    ctx.fillStyle = '#2C3E50';
+    ctx.fillRect(w * 0.85, h * 0.38, 14, h * 0.26);
+    ctx.fillRect(w * 0.82, h * 0.44, 30, 6);
+    ctx.fillRect(w * 0.82, h * 0.52, 30, 6);
+    // 안테나 상단 반짝이는 비콘 불빛
+    ctx.fillStyle = '#FF4757';
+    ctx.beginPath();
+    ctx.arc(w * 0.85 + 7, h * 0.38 - 4, 5, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 
@@ -849,20 +890,46 @@ export class SceneTemplates {
   }
 
   static drawSpaceStep5Return(ctx, w, h) {
-    // 5장: 지구로의 포근한 귀환
+    // 5장: 은하수 쏟아지는 찬란한 우주 축제 (잔디/오두막 제거, 완전한 우주 축하 배경)
     const sky = ctx.createLinearGradient(0, 0, 0, h);
-    sky.addColorStop(0, '#0F2027');
-    sky.addColorStop(0.5, '#203A43');
-    sky.addColorStop(1, '#2C5364');
+    sky.addColorStop(0, '#0F0C29');
+    sky.addColorStop(0.5, '#302B63');
+    sky.addColorStop(1, '#24243E');
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, w, h);
 
-    SceneTemplates.drawSmilingMoon(ctx, w * 0.8, h * 0.18, 55);
-    SceneTemplates.drawTwinkles(ctx, 70, w, h * 0.65);
+    // 거대한 은하수 무지개 오로라 아치
+    SceneTemplates.drawRainbowArch(ctx, w * 0.5, h * 0.88, w * 0.52);
 
-    ctx.fillStyle = '#11221F';
-    ctx.fillRect(0, h * 0.68, w, h * 0.32);
-    SceneTemplates.drawCozyNightCottage(ctx, w * 0.18, h * 0.52, 160, 130);
+    // 웃고 있는 달님과 별무리
+    SceneTemplates.drawSmilingMoon(ctx, w * 0.82, h * 0.18, 55);
+    SceneTemplates.drawTwinkles(ctx, 90, w, h * 0.7);
+
+    // 반짝이는 별가루 크리스탈 바닥
+    ctx.fillStyle = '#1B1734';
+    ctx.beginPath();
+    ctx.moveTo(0, h * 0.65);
+    ctx.bezierCurveTo(w * 0.3, h * 0.60, w * 0.7, h * 0.68, w, h * 0.62);
+    ctx.lineTo(w, h);
+    ctx.lineTo(0, h);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#130F26';
+    ctx.fillRect(0, h * 0.73, w, h * 0.27);
+
+    // 바닥에 흩뿌려진 별가루 & 크리스탈 반사
+    ctx.save();
+    const starColors = ['#FFD32A', '#00F2FE', '#FF6B81', '#A29BFE'];
+    for (let i = 0; i < 24; i++) {
+      ctx.fillStyle = starColors[i % starColors.length];
+      const sx = (i * 53) % w;
+      const sy = h * 0.74 + (i * 29) % (h * 0.22);
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   static drawSaturnPlanet(ctx, x, y, r) {
@@ -883,6 +950,371 @@ export class SceneTemplates {
     ctx.ellipse(x, y, r * 1.6, r * 0.45, -0.25, 0, Math.PI * 2);
     ctx.stroke();
     ctx.restore();
+  }
+
+  // ==========================================
+  // [THEME 4-B] 눈나라 & 겨울왕국 테마 (Snow)
+  // ==========================================
+  static renderSnowTheme(ctx, w, h, pageNumber) {
+    switch (pageNumber) {
+      case 0:
+        SceneTemplates.drawSnowCover(ctx, w, h);
+        break;
+      case 1:
+        SceneTemplates.drawSnowStep1Morning(ctx, w, h);
+        break;
+      case 2:
+        SceneTemplates.drawSnowStep2IceLake(ctx, w, h);
+        break;
+      case 3:
+        SceneTemplates.drawSnowStep3Igloo(ctx, w, h);
+        break;
+      case 4:
+        SceneTemplates.drawSnowStep4SunsetAurora(ctx, w, h);
+        break;
+      case 5:
+        SceneTemplates.drawSnowStep5StarryNight(ctx, w, h);
+        break;
+      default:
+        SceneTemplates.drawSnowStep1Morning(ctx, w, h);
+        break;
+    }
+  }
+
+  static drawSnowCover(ctx, w, h) {
+    const sky = ctx.createLinearGradient(0, 0, 0, h * 0.6);
+    sky.addColorStop(0, '#D4E6F1');
+    sky.addColorStop(0.5, '#EBF5FB');
+    sky.addColorStop(1, '#FFF5F5');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+
+    SceneTemplates.drawRainbowArch(ctx, w * 0.5, h * 0.95, w * 0.55);
+    SceneTemplates.drawSun(ctx, w * 0.85, 110, 48, '#FDCB6E');
+
+    // 포근한 흰 눈 언덕
+    ctx.fillStyle = '#D6EAF8';
+    SceneTemplates.drawHill(ctx, 0, h * 0.50, w, 100, 3);
+    ctx.fillStyle = '#EBF5FB';
+    SceneTemplates.drawHill(ctx, 0, h * 0.58, w, 110, 2);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, h * 0.66, w, h * 0.34);
+
+    // 귀여운 눈사람
+    SceneTemplates.drawSnowman(ctx, w * 0.82, h * 0.55, 90);
+    SceneTemplates.drawSnowflakes(ctx, 40, w, h * 0.8);
+  }
+
+  static drawSnowStep1Morning(ctx, w, h) {
+    // 1장: 상쾌하고 반짝이는 눈부신 아침 눈동산
+    const sky = ctx.createLinearGradient(0, 0, 0, h * 0.6);
+    sky.addColorStop(0, '#A9CCE3');
+    sky.addColorStop(0.5, '#D4E6F1');
+    sky.addColorStop(1, '#EBF5FB');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+
+    SceneTemplates.drawSun(ctx, 130, 110, 48, '#F39C12');
+    SceneTemplates.drawFluffyCloud(ctx, w * 0.45, h * 0.16, 60);
+
+    // 저 멀리 눈 덮인 설산
+    ctx.fillStyle = '#AED6F1';
+    ctx.beginPath();
+    ctx.moveTo(w * 0.60, h * 0.60);
+    ctx.lineTo(w * 0.75, h * 0.30);
+    ctx.lineTo(w * 0.90, h * 0.60);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.moveTo(w * 0.70, h * 0.40);
+    ctx.lineTo(w * 0.75, h * 0.30);
+    ctx.lineTo(w * 0.80, h * 0.40);
+    ctx.closePath();
+    ctx.fill();
+
+    // 부드러운 눈 언덕
+    ctx.fillStyle = '#D6EAF8';
+    SceneTemplates.drawHill(ctx, 0, h * 0.50, w, 100, 3);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, h * 0.62, w, h * 0.38);
+
+    SceneTemplates.drawSnowCoveredPine(ctx, w * 0.86, h * 0.38, 110);
+    SceneTemplates.drawSnowflakes(ctx, 35, w, h * 0.75);
+  }
+
+  static drawSnowStep2IceLake(ctx, w, h) {
+    // 2장: 반짝반짝 얼음 호수와 투명한 고드름
+    const sky = ctx.createLinearGradient(0, 0, 0, h * 0.55);
+    sky.addColorStop(0, '#7FB3D5');
+    sky.addColorStop(1, '#D4E6F1');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+
+    SceneTemplates.drawSun(ctx, w * 0.85, 100, 44, '#F1C40F');
+
+    ctx.fillStyle = '#EBF5FB';
+    SceneTemplates.drawHill(ctx, 0, h * 0.48, w, 90, 2);
+
+    const ice = ctx.createLinearGradient(0, h * 0.60, 0, h);
+    ice.addColorStop(0, '#5DADE2');
+    ice.addColorStop(0.5, '#76D7C4');
+    ice.addColorStop(1, '#A9DFBF');
+    ctx.fillStyle = ice;
+    ctx.fillRect(0, h * 0.60, w, h * 0.40);
+
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.2, h * 0.70);
+    ctx.lineTo(w * 0.35, h * 0.73);
+    ctx.lineTo(w * 0.45, h * 0.71);
+    ctx.moveTo(w * 0.6, h * 0.78);
+    ctx.lineTo(w * 0.75, h * 0.75);
+    ctx.stroke();
+    ctx.restore();
+
+    SceneTemplates.drawTwinkles(ctx, 40, w, h * 0.8);
+    SceneTemplates.drawSnowflakes(ctx, 25, w, h * 0.7);
+  }
+
+  static drawSnowStep3Igloo(ctx, w, h) {
+    // 3장: 따뜻한 불빛의 아담한 이글루 마을
+    const sky = ctx.createLinearGradient(0, 0, 0, h * 0.6);
+    sky.addColorStop(0, '#85C1E9');
+    sky.addColorStop(0.6, '#D4E6F1');
+    sky.addColorStop(1, '#FFF5EE');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+
+    SceneTemplates.drawSun(ctx, w * 0.5, 90, 48, '#F39C12');
+
+    ctx.fillStyle = '#D6EAF8';
+    SceneTemplates.drawHill(ctx, 0, h * 0.48, w, 100, 2);
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, h * 0.62, w, h * 0.38);
+
+    SceneTemplates.drawIgloo(ctx, w * 0.75, h * 0.48, 160);
+    SceneTemplates.drawSnowflakes(ctx, 35, w, h * 0.7);
+  }
+
+  static drawSnowStep4SunsetAurora(ctx, w, h) {
+    // 4장: 핑크빛 노을과 신비로운 오로라 눈밭
+    const sky = ctx.createLinearGradient(0, 0, 0, h * 0.65);
+    sky.addColorStop(0, '#6C5CE7');
+    sky.addColorStop(0.3, '#FD79A8');
+    sky.addColorStop(0.7, '#FAB1A0');
+    sky.addColorStop(1, '#FFEAA7');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.save();
+    const aurora = ctx.createLinearGradient(0, 0, w, h * 0.5);
+    aurora.addColorStop(0, 'rgba(85, 239, 196, 0)');
+    aurora.addColorStop(0.4, 'rgba(85, 239, 196, 0.45)');
+    aurora.addColorStop(0.7, 'rgba(129, 236, 236, 0.3)');
+    aurora.addColorStop(1, 'rgba(85, 239, 196, 0)');
+    ctx.fillStyle = aurora;
+    ctx.beginPath();
+    ctx.moveTo(0, h * 0.25);
+    ctx.bezierCurveTo(w * 0.3, h * 0.10, w * 0.7, h * 0.35, w, h * 0.18);
+    ctx.lineTo(w, h * 0.45);
+    ctx.bezierCurveTo(w * 0.7, h * 0.55, w * 0.3, h * 0.35, 0, h * 0.45);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
+
+    ctx.fillStyle = '#FADBD8';
+    SceneTemplates.drawHill(ctx, 0, h * 0.52, w, 100, 2);
+    ctx.fillStyle = '#FDEBD0';
+    ctx.fillRect(0, h * 0.64, w, h * 0.36);
+
+    SceneTemplates.drawSnowCoveredPine(ctx, w * 0.85, h * 0.42, 115);
+    SceneTemplates.drawSnowflakes(ctx, 30, w, h * 0.7);
+  }
+
+  static drawSnowStep5StarryNight(ctx, w, h) {
+    // 5장: 은은한 달빛과 포근한 눈 내리는 밤
+    const sky = ctx.createLinearGradient(0, 0, 0, h);
+    sky.addColorStop(0, '#0F2027');
+    sky.addColorStop(0.5, '#203A43');
+    sky.addColorStop(1, '#2C5364');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+
+    SceneTemplates.drawSmilingMoon(ctx, w * 0.82, h * 0.18, 55);
+    SceneTemplates.drawTwinkles(ctx, 60, w, h * 0.65);
+
+    ctx.fillStyle = '#2C3E50';
+    SceneTemplates.drawHill(ctx, 0, h * 0.55, w, 100, 2);
+    ctx.fillStyle = '#D6EAF8';
+    ctx.fillRect(0, h * 0.68, w, h * 0.32);
+
+    SceneTemplates.drawCozyNightCottage(ctx, w * 0.18, h * 0.52, 160, 130);
+    SceneTemplates.drawSnowflakes(ctx, 50, w, h * 0.85);
+  }
+
+  // ==========================================
+  // [THEME 4-C] 싱그러운 텃밭 & 채소밭 테마 (Garden)
+  // ==========================================
+  static renderGardenTheme(ctx, w, h, pageNumber) {
+    switch (pageNumber) {
+      case 0:
+        SceneTemplates.drawGardenCover(ctx, w, h);
+        break;
+      case 1:
+        SceneTemplates.drawGardenStep1Sprouts(ctx, w, h);
+        break;
+      case 2:
+        SceneTemplates.drawGardenStep2Vegetables(ctx, w, h);
+        break;
+      case 3:
+        SceneTemplates.drawGardenStep3Sunflower(ctx, w, h);
+        break;
+      case 4:
+        SceneTemplates.drawGardenStep4SunsetHarvest(ctx, w, h);
+        break;
+      case 5:
+        SceneTemplates.drawGardenStep5FireflyNight(ctx, w, h);
+        break;
+      default:
+        SceneTemplates.drawGardenStep1Sprouts(ctx, w, h);
+        break;
+    }
+  }
+
+  static drawGardenCover(ctx, w, h) {
+    const sky = ctx.createLinearGradient(0, 0, 0, h * 0.55);
+    sky.addColorStop(0, '#FFE8D6');
+    sky.addColorStop(0.5, '#FFF1E6');
+    sky.addColorStop(1, '#E8F4FD');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+
+    SceneTemplates.drawRainbowArch(ctx, w * 0.5, h * 0.95, w * 0.55);
+    SceneTemplates.drawSun(ctx, w * 0.85, 110, 48, '#FFA502');
+
+    SceneTemplates.drawPicketFence(ctx, w, h * 0.50);
+    ctx.fillStyle = '#795548';
+    ctx.fillRect(0, h * 0.62, w, h * 0.38);
+
+    SceneTemplates.drawVegetableRows(ctx, w, h);
+  }
+
+  static drawGardenStep1Sprouts(ctx, w, h) {
+    // 1장: 상쾌한 아침의 비옥한 텃밭 두둑과 파릇파릇 새싹
+    const sky = ctx.createLinearGradient(0, 0, 0, h * 0.55);
+    sky.addColorStop(0, '#81ECEC');
+    sky.addColorStop(0.6, '#DFE6E9');
+    sky.addColorStop(1, '#FFFDE4');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+
+    SceneTemplates.drawSun(ctx, 130, 110, 48, '#FFA502');
+    SceneTemplates.drawFluffyCloud(ctx, w * 0.65, 120, 60);
+
+    SceneTemplates.drawPicketFence(ctx, w, h * 0.48);
+
+    ctx.fillStyle = '#6D4C41';
+    ctx.fillRect(0, h * 0.60, w, h * 0.40);
+
+    ctx.fillStyle = '#5D4037';
+    for (let r = 0; r < 3; r++) {
+      const ry = h * (0.64 + r * 0.11);
+      ctx.beginPath();
+      ctx.ellipse(w * 0.5, ry, w * 0.55, 20, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    SceneTemplates.drawVegetableRows(ctx, w, h);
+  }
+
+  static drawGardenStep2Vegetables(ctx, w, h) {
+    // 2장: 탐스러운 토마토와 둥글둥글 호박 넝쿨 밭
+    const sky = ctx.createLinearGradient(0, 0, 0, h * 0.55);
+    sky.addColorStop(0, '#74B9FF');
+    sky.addColorStop(1, '#FFFDE4');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+
+    SceneTemplates.drawSun(ctx, w * 0.85, 110, 45, '#FFA502');
+    SceneTemplates.drawFluffyCloud(ctx, w * 0.35, 100, 55);
+
+    ctx.fillStyle = '#6D4C41';
+    ctx.fillRect(0, h * 0.58, w, h * 0.42);
+
+    SceneTemplates.drawPumpkinAndTomato(ctx, w, h);
+  }
+
+  static drawGardenStep3Sunflower(ctx, w, h) {
+    // 3장: 해바라기 방긋 웃는 꽃밭과 꿀벌
+    const sky = ctx.createLinearGradient(0, 0, 0, h * 0.55);
+    sky.addColorStop(0, '#81ECEC');
+    sky.addColorStop(1, '#FFFDE4');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+
+    SceneTemplates.drawSun(ctx, w * 0.5, 90, 48, '#FDCB6E');
+
+    ctx.fillStyle = '#2ED573';
+    ctx.fillRect(0, h * 0.60, w, h * 0.40);
+
+    SceneTemplates.drawSunflower(ctx, w * 0.78, h * 0.32, 50);
+    SceneTemplates.drawSunflower(ctx, w * 0.88, h * 0.36, 42);
+
+    SceneTemplates.drawBuntingFlags(ctx, w, 35, 18);
+  }
+
+  static drawGardenStep4SunsetHarvest(ctx, w, h) {
+    // 4장: 노을빛 풍성한 가을 수확 텃밭
+    const sky = ctx.createLinearGradient(0, 0, 0, h * 0.6);
+    sky.addColorStop(0, '#FF7675');
+    sky.addColorStop(0.5, '#FAB1A0');
+    sky.addColorStop(1, '#FFEAA7');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+
+    SceneTemplates.drawSun(ctx, w * 0.82, 120, 52, '#FF9F43');
+    SceneTemplates.drawRainbowArch(ctx, w * 0.5, h * 0.90, w * 0.50);
+
+    ctx.fillStyle = '#5D4037';
+    ctx.fillRect(0, h * 0.62, w, h * 0.38);
+
+    SceneTemplates.drawVegetableRows(ctx, w, h);
+  }
+
+  static drawGardenStep5FireflyNight(ctx, w, h) {
+    // 5장: 은은한 달빛 아래 반딧불이가 춤추는 밤의 텃밭
+    const sky = ctx.createLinearGradient(0, 0, 0, h);
+    sky.addColorStop(0, '#0F2027');
+    sky.addColorStop(0.5, '#203A43');
+    sky.addColorStop(1, '#2C5364');
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+
+    SceneTemplates.drawSmilingMoon(ctx, w * 0.8, h * 0.18, 55);
+    SceneTemplates.drawTwinkles(ctx, 50, w, h * 0.65);
+
+    ctx.fillStyle = '#3E2723';
+    ctx.fillRect(0, h * 0.66, w, h * 0.34);
+
+    ctx.save();
+    for (let i = 0; i < 20; i++) {
+      const fx = (i * 67) % w;
+      const fy = h * 0.58 + (i * 37) % (h * 0.35);
+      const fGlow = ctx.createRadialGradient(fx, fy, 2, fx, fy, 15);
+      fGlow.addColorStop(0, 'rgba(118, 255, 3, 0.9)');
+      fGlow.addColorStop(1, 'rgba(118, 255, 3, 0)');
+      ctx.fillStyle = fGlow;
+      ctx.beginPath();
+      ctx.arc(fx, fy, 15, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    SceneTemplates.drawCozyNightCottage(ctx, w * 0.18, h * 0.52, 160, 130);
   }
 
   // ==========================================
@@ -949,7 +1381,7 @@ export class SceneTemplates {
   }
 
   static drawVillageStep2Park(ctx, w, h) {
-    // 2장: 마을 공원과 커다란 나무
+    // 2장: 신나는 놀이터와 알록달록 미끄럼틀 & 그네
     const sky = ctx.createLinearGradient(0, 0, 0, h * 0.55);
     sky.addColorStop(0, '#85C1E9');
     sky.addColorStop(1, '#EBF5FB');
@@ -963,6 +1395,16 @@ export class SceneTemplates {
     SceneTemplates.drawHill(ctx, 0, h * 0.48, w, 110, 2);
     ctx.fillStyle = '#52BE80';
     ctx.fillRect(0, h * 0.62, w, h * 0.38);
+
+    // 모래놀이터
+    ctx.fillStyle = '#FFEAA7';
+    ctx.beginPath();
+    ctx.ellipse(w * 0.28, h * 0.76, 140, 45, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 알록달록 미끄럼틀 & 그네
+    SceneTemplates.drawPlaygroundSlide(ctx, w * 0.78, h * 0.44, 190);
+    SceneTemplates.drawSwingSet(ctx, w * 0.46, h * 0.42, 170);
 
     SceneTemplates.drawFlowersAndMushrooms(ctx, w, h, 'day');
   }
@@ -1571,6 +2013,324 @@ export class SceneTemplates {
       ctx.arc(tx, ty, r, 0, Math.PI * 2);
       ctx.fill();
     }
+    ctx.restore();
+  }
+
+  static drawSnowflakes(ctx, count, w, maxH) {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    for (let i = 0; i < count; i++) {
+      const sx = (i * 127) % w;
+      const sy = (i * 73) % maxH;
+      const sr = (i % 3) + 2.5;
+      ctx.beginPath();
+      ctx.arc(sx, sy, sr, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  static drawSnowman(ctx, x, y, size) {
+    ctx.save();
+    // 몸통
+    ctx.fillStyle = '#FFFFFF';
+    ctx.beginPath();
+    ctx.arc(x, y + size * 0.40, size * 0.45, 0, Math.PI * 2);
+    ctx.fill();
+    // 머리
+    ctx.beginPath();
+    ctx.arc(x, y - size * 0.15, size * 0.32, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 모자
+    ctx.fillStyle = '#2C3E50';
+    ctx.fillRect(x - size * 0.28, y - size * 0.45, size * 0.56, size * 0.12);
+    ctx.fillRect(x - size * 0.18, y - size * 0.72, size * 0.36, size * 0.30);
+    ctx.fillStyle = '#E74C3C';
+    ctx.fillRect(x - size * 0.18, y - size * 0.48, size * 0.36, size * 0.08);
+
+    // 당근 코
+    ctx.fillStyle = '#E67E22';
+    ctx.beginPath();
+    ctx.moveTo(x, y - size * 0.16);
+    ctx.lineTo(x + size * 0.30, y - size * 0.12);
+    ctx.lineTo(x, y - size * 0.08);
+    ctx.closePath();
+    ctx.fill();
+
+    // 눈 & 미소
+    ctx.fillStyle = '#2C3E50';
+    ctx.beginPath();
+    ctx.arc(x - size * 0.10, y - size * 0.22, 3.5, 0, Math.PI * 2);
+    ctx.arc(x + size * 0.10, y - size * 0.22, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 빨간 목도리
+    ctx.fillStyle = '#E74C3C';
+    ctx.beginPath();
+    ctx.ellipse(x, y + size * 0.10, size * 0.28, size * 0.10, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(x + size * 0.08, y + size * 0.10, size * 0.12, size * 0.25);
+    ctx.restore();
+  }
+
+  static drawSnowCoveredPine(ctx, x, y, size) {
+    ctx.save();
+    // 나무 기둥
+    ctx.fillStyle = '#5D4037';
+    ctx.fillRect(x - size * 0.08, y + size * 0.55, size * 0.16, size * 0.35);
+
+    // 3단 잎사귀 + 눈 모자
+    const tiers = [
+      { yOffset: y + size * 0.35, w: size * 0.55, h: size * 0.35 },
+      { yOffset: y + size * 0.10, w: size * 0.45, h: size * 0.32 },
+      { yOffset: y - size * 0.15, w: size * 0.35, h: size * 0.30 }
+    ];
+
+    for (const t of tiers) {
+      // 초록 잎
+      ctx.fillStyle = '#2E7D32';
+      ctx.beginPath();
+      ctx.moveTo(x, t.yOffset - t.h);
+      ctx.lineTo(x - t.w, t.yOffset);
+      ctx.lineTo(x + t.w, t.yOffset);
+      ctx.closePath();
+      ctx.fill();
+
+      // 소복이 쌓인 흰 눈
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.moveTo(x - t.w, t.yOffset);
+      ctx.quadraticCurveTo(x - t.w * 0.5, t.yOffset + 6, x, t.yOffset + 4);
+      ctx.quadraticCurveTo(x + t.w * 0.5, t.yOffset + 6, x + t.w, t.yOffset);
+      ctx.lineTo(x + t.w * 0.8, t.yOffset - 12);
+      ctx.lineTo(x, t.yOffset - t.h + 8);
+      ctx.lineTo(x - t.w * 0.8, t.yOffset - 12);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  static drawIgloo(ctx, x, y, size) {
+    ctx.save();
+    // 돔 몸체
+    ctx.fillStyle = '#E3F2FD';
+    ctx.beginPath();
+    ctx.arc(x, y + size * 0.45, size * 0.45, Math.PI, 0);
+    ctx.fill();
+
+    // 얼음 블록 줄눈
+    ctx.strokeStyle = '#BBDEFB';
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    ctx.arc(x, y + size * 0.45, size * 0.45, Math.PI, 0);
+    ctx.arc(x, y + size * 0.45, size * 0.30, Math.PI, 0);
+    ctx.arc(x, y + size * 0.45, size * 0.16, Math.PI, 0);
+    ctx.stroke();
+
+    // 입구 터널
+    ctx.fillStyle = '#CFD8DC';
+    ctx.beginPath();
+    ctx.arc(x - size * 0.35, y + size * 0.45, size * 0.22, Math.PI, 0);
+    ctx.fill();
+
+    // 입구 안쪽 따뜻한 등불
+    ctx.fillStyle = '#FFE082';
+    ctx.beginPath();
+    ctx.arc(x - size * 0.35, y + size * 0.45, size * 0.16, Math.PI, 0);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  static drawPlaygroundSlide(ctx, x, y, size) {
+    ctx.save();
+    // 사다리 기둥
+    ctx.fillStyle = '#E74C3C';
+    ctx.fillRect(x - size * 0.40, y - size * 0.40, 8, size * 0.90);
+    ctx.fillRect(x - size * 0.30, y - size * 0.40, 8, size * 0.90);
+    // 사다리 발판
+    ctx.fillStyle = '#F1C40F';
+    for (let r = 0; r < 5; r++) {
+      ctx.fillRect(x - size * 0.40, y - size * 0.32 + r * (size * 0.14), size * 0.18, 5);
+    }
+
+    // 미끄럼틀 플랫폼
+    ctx.fillStyle = '#3498DB';
+    ctx.fillRect(x - size * 0.42, y - size * 0.42, size * 0.26, 8);
+
+    // 노란색 곡선 슬라이드 판
+    ctx.fillStyle = '#F39C12';
+    ctx.beginPath();
+    ctx.moveTo(x - size * 0.18, y - size * 0.38);
+    ctx.bezierCurveTo(x + size * 0.15, y - size * 0.20, x + size * 0.25, y + size * 0.25, x + size * 0.45, y + size * 0.48);
+    ctx.lineTo(x + size * 0.38, y + size * 0.48);
+    ctx.bezierCurveTo(x + size * 0.20, y + size * 0.25, x + size * 0.08, y - size * 0.15, x - size * 0.24, y - size * 0.34);
+    ctx.closePath();
+    ctx.fill();
+
+    // 미끄럼틀 지지대
+    ctx.strokeStyle = '#7F8C8D';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(x + size * 0.15, y);
+    ctx.lineTo(x + size * 0.15, y + size * 0.48);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  static drawSwingSet(ctx, x, y, size) {
+    ctx.save();
+    // A자 프레임 기둥
+    ctx.strokeStyle = '#8D6E63';
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(x - size * 0.45, y + size * 0.50);
+    ctx.lineTo(x - size * 0.35, y - size * 0.30);
+    ctx.lineTo(x - size * 0.25, y + size * 0.50);
+
+    ctx.moveTo(x + size * 0.25, y + size * 0.50);
+    ctx.lineTo(x + size * 0.35, y - size * 0.30);
+    ctx.lineTo(x + size * 0.45, y + size * 0.50);
+
+    // 상단 빔
+    ctx.moveTo(x - size * 0.40, y - size * 0.30);
+    ctx.lineTo(x + size * 0.40, y - size * 0.30);
+    ctx.stroke();
+
+    // 그네 줄 & 안장 (2개)
+    const swingXs = [x - size * 0.15, x + size * 0.15];
+    for (const sx of swingXs) {
+      ctx.strokeStyle = '#424242';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(sx - 10, y - size * 0.30);
+      ctx.lineTo(sx - 10, y + size * 0.22);
+      ctx.moveTo(sx + 10, y - size * 0.30);
+      ctx.lineTo(sx + 10, y + size * 0.22);
+      ctx.stroke();
+
+      ctx.fillStyle = '#E74C3C';
+      ctx.fillRect(sx - 16, y + size * 0.22, 32, 7);
+    }
+    ctx.restore();
+  }
+
+  static drawPicketFence(ctx, w, y) {
+    ctx.save();
+    // 가로 가이드 바
+    ctx.fillStyle = '#FAFAFA';
+    ctx.fillRect(0, y + 15, w, 6);
+    ctx.fillRect(0, y + 35, w, 6);
+
+    // 세로 말뚝
+    ctx.fillStyle = '#FFFFFF';
+    ctx.strokeStyle = '#E0E0E0';
+    ctx.lineWidth = 1;
+    for (let x = 10; x < w; x += 32) {
+      ctx.beginPath();
+      ctx.moveTo(x, y + 50);
+      ctx.lineTo(x, y + 10);
+      ctx.lineTo(x + 7, y);
+      ctx.lineTo(x + 14, y + 10);
+      ctx.lineTo(x + 14, y + 50);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  static drawVegetableRows(ctx, w, h) {
+    ctx.save();
+    // 당근 머리와 새싹들
+    for (let i = 0; i < 9; i++) {
+      const vx = w * (0.08 + i * 0.10);
+      const vy = h * (0.68 + (i % 3) * 0.08);
+
+      // 흙에서 삐죽 솟은 당근 어깨
+      ctx.fillStyle = '#FF7043';
+      ctx.beginPath();
+      ctx.ellipse(vx, vy, 11, 7, 0, 0, Math.PI * 2);
+      ctx.fill();
+
+      // 파릇파릇 초록 깃털 잎사귀
+      ctx.fillStyle = '#4CAF50';
+      ctx.beginPath();
+      ctx.moveTo(vx, vy - 4);
+      ctx.lineTo(vx - 8, vy - 18);
+      ctx.lineTo(vx - 2, vy - 12);
+      ctx.lineTo(vx, vy - 24);
+      ctx.lineTo(vx + 3, vy - 12);
+      ctx.lineTo(vx + 9, vy - 17);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  static drawPumpkinAndTomato(ctx, w, h) {
+    ctx.save();
+    // 커다란 주황 호박
+    const px = w * 0.80;
+    const py = h * 0.70;
+    ctx.fillStyle = '#FF9800';
+    ctx.beginPath();
+    ctx.ellipse(px - 14, py, 26, 32, -0.1, 0, Math.PI * 2);
+    ctx.ellipse(px + 14, py, 26, 32, 0.1, 0, Math.PI * 2);
+    ctx.ellipse(px, py, 28, 34, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // 호박 꼭지
+    ctx.fillStyle = '#33691E';
+    ctx.fillRect(px - 4, py - 42, 8, 14);
+
+    // 토마토 지지대와 방울토마토들
+    ctx.strokeStyle = '#795548';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(w * 0.65, h * 0.48);
+    ctx.lineTo(w * 0.65, h * 0.74);
+    ctx.stroke();
+
+    const tomatoPos = [
+      { x: w * 0.63, y: h * 0.54 },
+      { x: w * 0.67, y: h * 0.60 },
+      { x: w * 0.64, y: h * 0.66 }
+    ];
+    for (const t of tomatoPos) {
+      ctx.fillStyle = '#E53935';
+      ctx.beginPath();
+      ctx.arc(t.x, t.y, 11, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#4CAF50';
+      ctx.fillRect(t.x - 3, t.y - 14, 6, 4);
+    }
+    ctx.restore();
+  }
+
+  static drawSunflower(ctx, x, y, r) {
+    ctx.save();
+    // 줄기
+    ctx.strokeStyle = '#388E3C';
+    ctx.lineWidth = 7;
+    ctx.beginPath();
+    ctx.moveTo(x, y + r);
+    ctx.quadraticCurveTo(x - 5, y + r + 80, x - 10, y + 160);
+    ctx.stroke();
+
+    // 꽃잎들
+    ctx.fillStyle = '#FFC107';
+    for (let a = 0; a < Math.PI * 2; a += Math.PI / 7) {
+      ctx.beginPath();
+      ctx.ellipse(x + Math.cos(a) * (r * 0.8), y + Math.sin(a) * (r * 0.8), r * 0.35, r * 0.18, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // 가운데 씨앗 판
+    ctx.fillStyle = '#4E342E';
+    ctx.beginPath();
+    ctx.arc(x, y, r * 0.55, 0, Math.PI * 2);
+    ctx.fill();
     ctx.restore();
   }
 
