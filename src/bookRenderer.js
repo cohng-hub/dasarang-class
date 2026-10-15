@@ -78,6 +78,19 @@ export class BookRenderer {
       }
     }
 
+    // 🌟 조연 사진이 등록되어 있는데, 2장(친구 만나는 장면) 등에서 이름 매칭이 안 된 경우:
+    // 아이가 정성껏 올린 조연 사진이 AI 벡터 그림으로 대체되지 않도록 첫 번째 조연 사진을 100% 보장 매칭
+    if (companionCanvases.length === 0 && candidatePhotos.length > 0) {
+      const isFriendScene = pageInfo.pageNumber === 2 || fullText.includes('만났') || fullText.includes('친구') || fullText.includes('함께');
+      if (isFriendScene) {
+        const fallbackPhoto = candidatePhotos[0];
+        if (fallbackPhoto && fallbackPhoto.transparentCanvas) {
+          companionCanvases.push(fallbackPhoto.transparentCanvas);
+          matchedFriendNames.push(fallbackPhoto.name || '친구');
+        }
+      }
+    }
+
     return {
       protagonistCanvas,
       companionCanvases,

@@ -2136,6 +2136,51 @@ class PictureBookApp {
         this.character.transparentCanvas = charCanvas;
       }
 
+      // 🌟 모든 등록 사진(주인공 + 조연들) 완벽 복원
+      this.uploadedPhotos = [];
+      if (Array.isArray(savedBook.uploadedPhotos) && savedBook.uploadedPhotos.length > 0) {
+        for (const p of savedBook.uploadedPhotos) {
+          let cvs = null;
+          if (p.transparentImage) {
+            try {
+              const img = await CharacterProcessor.loadImage(p.transparentImage);
+              cvs = document.createElement('canvas');
+              cvs.width = img.width;
+              cvs.height = img.height;
+              cvs.getContext('2d').drawImage(img, 0, 0);
+            } catch (err) {
+              console.warn('조연 사진 복원 실패:', p.name, err);
+            }
+          }
+          this.uploadedPhotos.push({
+            id: p.id || ('photo_' + Date.now()),
+            name: p.name || '',
+            label: p.label || '',
+            isProtagonist: !!p.isProtagonist,
+            transparentCanvas: cvs
+          });
+        }
+      } else if (charCanvas) {
+        // 구버전 저장본 하위 호환
+        this.uploadedPhotos = [{
+          id: 'photo_main',
+          name: this.character.name,
+          label: '주인공',
+          isProtagonist: true,
+          transparentCanvas: charCanvas
+        }];
+      }
+
+      // 주인공 캔버스 지정
+      const protoPhoto = this.uploadedPhotos.find(p => p.isProtagonist) || this.uploadedPhotos[0];
+      if (protoPhoto && protoPhoto.transparentCanvas) {
+        this.character.transparentCanvas = protoPhoto.transparentCanvas;
+        this.character.name = protoPhoto.name || this.character.name;
+      } else if (charCanvas) {
+        this.character.transparentCanvas = charCanvas;
+      }
+      this.selectedPhotoIndex = 0;
+
       // 페이지별 개별 이미지 복원
       this.pageCustomImages = {};
       if (savedBook.pageImages) {
@@ -2151,13 +2196,14 @@ class PictureBookApp {
         }
       }
 
-      // 렌더링
+      // 렌더링 (🌟 복원된 uploadedPhotos를 전달하여 조연 사진까지 100% 보존)
       const pages = await BookRenderer.renderEntireBook(
         this.book.storyData,
-        charCanvas || this.character.transparentCanvas,
+        this.character.transparentCanvas,
         {
           withSticker: true,
           isPhoto: false,
+          uploadedPhotos: this.uploadedPhotos,
           pageImages: this.pageCustomImages
         }
       );
@@ -2205,10 +2251,38 @@ class PictureBookApp {
       const maxDim = 320;
       const scale = Math.min(1, maxDim / Math.max(cc.width, cc.height));
       const cCanvas = document.createElement('canvas');
-      cCanvas.width = Math.round(cc.width * scale);
-      cCanvas.height = Math.round(cc.height * scale);
+      cCanvas.width = Math.max(1, Math.round(cc.width * scale));
+      cCanvas.height = Math.max(1, Math.round(cc.height * scale));
       cCanvas.getContext('2d').drawImage(cc, 0, 0, cCanvas.width, cCanvas.height);
       charImgData = cCanvas.toDataURL('image/png');
+    }
+
+    // 2-1. 🌟 등록된 모든 캐릭터/조연 사진들(uploadedPhotos) 압축 저장
+    const savedUploadedPhotos = [];
+    if (Array.isArray(this.uploadedPhotos) && this.uploadedPhotos.length > 0) {
+      this.uploadedPhotos.forEach((p, idx) => {
+        let transparentDataUrl = null;
+        if (p.transparentCanvas && p.transparentCanvas.width) {
+          const cc = p.transparentCanvas;
+          const maxDim = 320;
+          const scale = Math.min(1, maxDim / Math.max(cc.width, cc.height));
+          const cCanvas = document.createElement('canvas');
+          cCanvas.width = Math.max(1, Math.round(cc.width * scale));
+          cCanvas.height = Math.max(1, Math.round(cc.height * scale));
+          cCanvas.getContext('2d').drawImage(cc, 0, 0, cCanvas.width, cCanvas.height);
+          transparentDataUrl = cCanvas.toDataURL('image/png');
+        } else if (p.isProtagonist && charImgData) {
+          transparentDataUrl = charImgData;
+        }
+
+        savedUploadedPhotos.push({
+          id: p.id || `photo_${Date.now()}_${idx}`,
+          name: p.name || '',
+          label: p.label || '',
+          isProtagonist: !!p.isProtagonist,
+          transparentImage: transparentDataUrl
+        });
+      });
     }
 
     // 3. 페이지별 개별 이미지 압축 (최대 320px 리사이즈 - 약 35KB)
@@ -2245,6 +2319,7 @@ class PictureBookApp {
       storyData: JSON.parse(JSON.stringify(this.book.storyData)),
       coverThumbnail: thumbDataUrl,
       characterImage: charImgData,
+      uploadedPhotos: savedUploadedPhotos,
       pageImages: pageImgsData
     };
 
@@ -2283,6 +2358,28 @@ class PictureBookApp {
         tc.height = 240;
         tc.getContext('2d').drawImage(coverCanvas, 0, 0, 320, 240);
         book.coverThumbnail = tc.toDataURL('image/jpeg', 0.75);
+      }
+      if (this.uploadedPhotos && this.uploadedPhotos.length > 0) {
+        book.uploadedPhotos = this.uploadedPhotos.map((p, pIdx) => {
+          let transparentDataUrl = null;
+          if (p.transparentCanvas && p.transparentCanvas.width) {
+            const cc = p.transparentCanvas;
+            const maxDim = 320;
+            const scale = Math.min(1, maxDim / Math.max(cc.width, cc.height));
+            const cCanvas = document.createElement('canvas');
+            cCanvas.width = Math.max(1, Math.round(cc.width * scale));
+            cCanvas.height = Math.max(1, Math.round(cc.height * scale));
+            cCanvas.getContext('2d').drawImage(cc, 0, 0, cCanvas.width, cCanvas.height);
+            transparentDataUrl = cCanvas.toDataURL('image/png');
+          }
+          return {
+            id: p.id || `photo_${Date.now()}_${pIdx}`,
+            name: p.name || '',
+            label: p.label || '',
+            isProtagonist: !!p.isProtagonist,
+            transparentImage: transparentDataUrl
+          };
+        });
       }
       await this.saveBookToStorage(book);
     }
