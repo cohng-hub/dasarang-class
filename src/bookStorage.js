@@ -170,7 +170,10 @@ class BookStorage {
         try {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 6000);
-          const res = await fetch(ep, { signal: controller.signal });
+          const res = await fetch(ep, {
+            signal: controller.signal,
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+          });
           clearTimeout(timeoutId);
           if (res.ok) {
             responseData = await res.json();
@@ -259,7 +262,10 @@ class BookStorage {
       try {
         const res = await fetch(ep, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          },
           body: JSON.stringify(book)
         });
         if (res.ok) return true;
@@ -348,7 +354,10 @@ class BookStorage {
     const endpoints = [`/api/books/${bookId}`, `http://127.0.0.1:8000/api/books/${bookId}`];
     for (const ep of endpoints) {
       try {
-        const res = await fetch(ep, { method: 'DELETE' });
+        const res = await fetch(ep, {
+          method: 'DELETE',
+          headers: { 'ngrok-skip-browser-warning': 'true' }
+        });
         if (res.ok) break;
       } catch (e) {}
     }

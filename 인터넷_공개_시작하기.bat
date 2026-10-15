@@ -13,15 +13,16 @@ start /b npm run dev > nul 2>&1
 
 echo.
 echo ========================================================
-echo   📌 영구 고정 접속 주소: https://dasarang-class.loca.lt
-echo   (언제 어디서나, 내일도 주소가 절대 바뀌지 않습니다)
+echo   📌 영구 고정 접속 주소:
+echo   https://jubilant-lively-dreamy.ngrok-free.dev
+echo   (내일도, 1년 뒤에도 주소가 절대 바뀌지 않습니다)
 echo ========================================================
 echo.
 echo [3/3] 영구 고정 보안 터널 연결 중...
 echo.
 
 :LOOP
-npx -y localtunnel --port 5173 --subdomain dasarang-class --local-host 127.0.0.1
+"%~dp0tools\ngrok.exe" http 5173 --url=https://jubilant-lively-dreamy.ngrok-free.dev
 echo ⚠️ 터널 재연결 중... (2초 후 재시도)
 timeout /t 2 /nobreak > nul
 goto LOOP

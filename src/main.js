@@ -105,7 +105,9 @@ class PictureBookApp {
       if (sharedBookId) {
         let book = bookStorage.getBookById(sharedBookId);
         if (!book) {
-          const res = await fetch(`/api/books/${sharedBookId}`).catch(() => null);
+          const res = await fetch(`/api/books/${sharedBookId}`, {
+            headers: { 'ngrok-skip-browser-warning': 'true' }
+          }).catch(() => null);
           if (res && res.ok) book = await res.json();
         }
         if (book) {

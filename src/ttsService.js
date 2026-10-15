@@ -183,7 +183,10 @@ export class TtsService {
         const timeoutId = setTimeout(() => controller.abort(), 6000);
         const res = await fetch(ep, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          },
           body: JSON.stringify({
             text: clean,
             language: 'Korean'
@@ -211,7 +214,10 @@ export class TtsService {
         const timeoutId = setTimeout(() => controller.abort(), 8000);
         const res = await fetch(ep, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          },
           body: JSON.stringify({
             text: text.trim(),
             language: 'Korean',
@@ -243,7 +249,10 @@ export class TtsService {
         const timeoutId = setTimeout(() => controller.abort(), 4000);
         const res = await fetch(ep, {
           signal: controller.signal,
-          headers: { 'Accept': 'application/json' }
+          headers: {
+            'Accept': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          }
         });
         clearTimeout(timeoutId);
 
